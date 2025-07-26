@@ -1,0 +1,306 @@
+# Manual do Usuário - Sistema DockFlow
+
+## Introdução
+
+Bem-vindo ao DockFlow, o sistema integrado para gestão de operações de carregamento e armazém. Este manual fornece instruções detalhadas sobre como usar o sistema, desde o login até operações específicas como check-in de motoristas e bipagem de itens.
+
+## Sumário
+
+1. [Acesso ao Sistema](#1-acesso-ao-sistema)
+2. [Dashboard](#2-dashboard)
+3. [Gerenciamento de Docas](#3-gerenciamento-de-docas)
+4. [Gestão de Carregamentos](#4-gestão-de-carregamentos)
+5. [Cadastro de Produtos](#5-cadastro-de-produtos)
+6. [Cadastro de Motoristas](#6-cadastro-de-motoristas)
+7. [Integração com WhatsApp](#7-integração-com-whatsapp)
+8. [Dúvidas Frequentes](#8-dúvidas-frequentes)
+
+## 1. Acesso ao Sistema
+
+### 1.1 Login
+
+1. Acesse o endereço do sistema em seu navegador
+2. Na tela de login, insira seu email e senha
+3. Clique no botão "Entrar"
+
+**Nota:** Se for seu primeiro acesso, use as credenciais fornecidas pelo administrador do sistema.
+
+### 1.2 Recuperação de Senha
+
+Caso esqueça sua senha:
+1. Clique em "Esqueci minha senha" na tela de login
+2. Insira seu email cadastrado
+3. Siga as instruções enviadas para seu email
+
+### 1.3 Navegação Básica
+
+Após o login, você terá acesso ao menu lateral com as seguintes opções:
+- **Dashboard:** Visão geral do sistema
+- **Carregamentos:** Gerenciamento de carregamentos
+- **Docas:** Controle de docas
+- **Produtos:** Cadastro de produtos
+- **Motoristas:** Cadastro de motoristas
+- **Usuários:** Gerenciamento de usuários (apenas para administradores)
+- **Relatórios:** Geração de relatórios
+
+## 2. Dashboard
+
+O Dashboard apresenta uma visão geral das operações em tempo real:
+
+### 2.1 Indicadores (KPIs)
+
+- **Carregamentos Hoje:** Total de carregamentos do dia
+- **Docas:** Número total de docas e status (disponíveis/ocupadas)
+- **Taxa de Ocupação:** Percentual de docas em uso
+- **Eficiência:** Taxa de conclusão de carregamentos
+
+### 2.2 Status das Docas
+
+Exibe cards com todas as docas e seus status atuais:
+- **Verde:** Disponível
+- **Amarelo:** Ocupada
+- **Vermelho:** Em manutenção
+
+Ações disponíveis:
+- **Visualizar:** Ver detalhes da doca
+- **Bloquear/Liberar:** Alternar status da doca (disponível/manutenção)
+
+### 2.3 Carregamentos do Dia
+
+Lista todos os carregamentos agendados para o dia atual com as seguintes informações:
+- Horário
+- Motorista
+- Doca
+- Status
+- Ações (check-in, check-out, visualizar)
+
+### 2.4 Novo Carregamento
+
+Para agendar um novo carregamento diretamente do dashboard:
+1. Clique no botão "Novo Carregamento"
+2. Preencha a data e horário
+3. Selecione um motorista existente ou cadastre um novo
+4. Adicione os produtos a serem carregados
+5. Clique em "Salvar Carregamento"
+
+## 3. Gerenciamento de Docas
+
+### 3.1 Visualização de Docas
+
+A tela de Docas exibe uma lista de todas as docas cadastradas com:
+- Nome
+- Status atual
+- Última atualização
+- Ações disponíveis
+
+### 3.2 Filtros e Pesquisa
+
+Use os filtros para encontrar docas específicas:
+- Pesquisa por nome
+- Filtro por status (disponível, ocupada, manutenção)
+
+### 3.3 Cadastro de Nova Doca
+
+Para cadastrar uma nova doca:
+1. Clique no botão "Nova Doca"
+2. Preencha o nome da doca
+3. Selecione o status inicial
+4. Adicione uma descrição (opcional)
+5. Clique em "Salvar"
+
+### 3.4 Edição e Exclusão
+
+Para editar uma doca:
+1. Clique no ícone de edição na linha da doca
+2. Faça as alterações necessárias
+3. Clique em "Salvar"
+
+Para excluir uma doca:
+1. Clique no ícone de exclusão na linha da doca
+2. Confirme a exclusão no modal de confirmação
+
+**Nota:** Não é possível excluir docas que possuem carregamentos associados.
+
+## 4. Gestão de Carregamentos
+
+### 4.1 Visualização de Carregamentos
+
+A tela de Carregamentos organiza as informações em abas:
+- **Hoje:** Carregamentos do dia atual
+- **Agendados:** Carregamentos futuros
+- **Concluídos:** Histórico de carregamentos finalizados
+- **Todos:** Lista completa de carregamentos
+
+### 4.2 Filtros e Pesquisa
+
+Use os filtros para encontrar carregamentos específicos:
+- Pesquisa por motorista ou produto
+- Filtro por status (agendado, em andamento, concluído, cancelado)
+- Filtro por data
+
+### 4.3 Agendamento de Carregamento
+
+Para agendar um novo carregamento:
+1. Clique no botão "Novo Carregamento"
+2. Preencha a data e horário
+3. Selecione um motorista existente ou cadastre um novo
+4. Adicione os produtos a serem carregados
+5. Preencha observações (se necessário)
+6. Clique em "Salvar Carregamento"
+
+### 4.4 Processo de Check-in
+
+Para realizar o check-in de um motorista:
+1. Localize o carregamento na lista
+2. Clique no botão "Check-in"
+3. Selecione a doca a ser utilizada
+4. Confirme o check-in
+
+Alternativamente, o motorista pode realizar o check-in via WhatsApp.
+
+### 4.5 Bipagem de Itens
+
+Para registrar a bipagem de itens durante o carregamento:
+1. Acesse os detalhes do carregamento
+2. Clique no botão "Bipagem"
+3. Escaneie ou digite o código do produto
+4. Clique em "Bipar"
+5. Repita o processo para cada item
+
+Quando todos os itens forem bipados, o sistema realizará o check-out automaticamente.
+
+### 4.6 Processo de Check-out
+
+Para realizar o check-out manualmente:
+1. Localize o carregamento na lista
+2. Clique no botão "Check-out"
+3. Confirme o check-out
+
+**Nota:** O check-out libera a doca para outro carregamento.
+
+## 5. Cadastro de Produtos
+
+### 5.1 Visualização de Produtos
+
+A tela de Produtos exibe uma lista de todos os produtos cadastrados com:
+- Código
+- Nome
+- Descrição
+- Data de cadastro
+- Ações disponíveis
+
+### 5.2 Filtros e Pesquisa
+
+Use a barra de pesquisa para encontrar produtos por nome, código ou descrição.
+
+### 5.3 Cadastro de Novo Produto
+
+Para cadastrar um novo produto:
+1. Clique no botão "Novo Produto"
+2. Preencha o código do produto (deve ser único)
+3. Insira o nome do produto
+4. Adicione uma descrição (opcional)
+5. Clique em "Salvar"
+
+### 5.4 Edição e Exclusão
+
+Para editar um produto:
+1. Clique no ícone de edição na linha do produto
+2. Faça as alterações necessárias
+3. Clique em "Salvar"
+
+Para excluir um produto:
+1. Clique no ícone de exclusão na linha do produto
+2. Confirme a exclusão no modal de confirmação
+
+**Nota:** Não é possível excluir produtos que estão sendo utilizados em carregamentos.
+
+## 6. Cadastro de Motoristas
+
+### 6.1 Visualização de Motoristas
+
+A tela de Motoristas exibe uma lista de todos os motoristas cadastrados com:
+- Nome
+- Telefone
+- Placa do veículo
+- Tipo de veículo
+- Último carregamento
+- Ações disponíveis
+
+### 6.2 Filtros e Pesquisa
+
+Use a barra de pesquisa para encontrar motoristas por nome, telefone ou placa.
+
+### 6.3 Cadastro de Novo Motorista
+
+Para cadastrar um novo motorista:
+1. Clique no botão "Novo Motorista"
+2. Preencha o nome completo
+3. Insira o telefone (WhatsApp)
+4. Adicione a placa do veículo
+5. Selecione o tipo de veículo
+6. Adicione observações (opcional)
+7. Clique em "Salvar"
+
+### 6.4 Detalhes do Motorista
+
+Para visualizar detalhes completos de um motorista:
+1. Clique no ícone de visualização na linha do motorista
+2. Veja informações pessoais, do veículo e histórico de carregamentos
+3. Opções adicionais:
+   - Editar cadastro
+   - Agendar novo carregamento
+   - Enviar mensagem via WhatsApp
+
+## 7. Integração com WhatsApp
+
+### 7.1 Comandos Disponíveis
+
+Os motoristas podem interagir com o sistema via WhatsApp usando os seguintes comandos:
+- **"Cheguei"**: Realiza o check-in do motorista
+- **"Status"**: Consulta o status do carregamento atual
+- **"Consultar"**: Verifica carregamentos agendados
+
+### 7.2 Processo de Check-in via WhatsApp
+
+1. O motorista envia "Cheguei" para o número do sistema
+2. O sistema verifica se há carregamentos agendados para o motorista
+3. Se houver uma doca disponível, o sistema realiza o check-in automaticamente
+4. O motorista recebe a confirmação com o número da doca designada
+
+### 7.3 Envio de Mensagens para Motoristas
+
+Para enviar uma mensagem para um motorista:
+1. Acesse os detalhes do motorista
+2. Clique no botão "Enviar Mensagem"
+3. Digite a mensagem
+4. Clique em "Enviar"
+
+## 8. Dúvidas Frequentes
+
+### 8.1 Problemas de Login
+
+**P: Não consigo fazer login no sistema.**
+R: Verifique se você está usando o email e senha corretos. Caso tenha esquecido a senha, use a opção "Esqueci minha senha" na tela de login.
+
+### 8.2 Gerenciamento de Docas
+
+**P: Por que não consigo excluir uma doca?**
+R: Docas que possuem carregamentos associados (atuais ou históricos) não podem ser excluídas para manter a integridade dos dados.
+
+### 8.3 Carregamentos
+
+**P: O que acontece se todos os itens forem bipados?**
+R: Quando todos os itens de um carregamento são bipados, o sistema realiza o check-out automaticamente e libera a doca.
+
+**P: Posso alterar a doca de um carregamento em andamento?**
+R: Sim, acesse os detalhes do carregamento, clique em "Alterar Doca" e selecione a nova doca.
+
+### 8.4 Integração com WhatsApp
+
+**P: O motorista não recebeu a confirmação do check-in.**
+R: Verifique se o número de telefone cadastrado está correto e se o motorista possui carregamentos agendados para o dia atual.
+
+---
+
+Para mais informações ou suporte técnico, entre em contato com o administrador do sistema ou a equipe de TI.

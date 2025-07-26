@@ -1,0 +1,409 @@
+<!-- Página de Gerenciamento de Usuários -->
+<div class="content-page">
+  <!-- Cabeçalho da página -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h4 class="mb-1">Gerenciamento de Usuários</h4>
+      <p class="text-muted mb-0">Controle de acesso e permissões do sistema</p>
+    </div>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#userModal" data-role="admin">
+      <i class="fas fa-plus me-1"></i> Novo Usuário
+    </button>
+  </div>
+
+  <!-- Cards de Status -->
+  <div class="row mb-4">
+    <div class="col-md-3">
+      <div class="card border-0 bg-success bg-opacity-10">
+        <div class="card-body text-center">
+          <i class="fas fa-user-check text-success fa-2x mb-2"></i>
+          <h5 class="text-success mb-1" id="active-users-count">0</h5>
+          <small class="text-muted">Usuários Ativos</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 bg-warning bg-opacity-10">
+        <div class="card-body text-center">
+          <i class="fas fa-user-clock text-warning fa-2x mb-2"></i>
+          <h5 class="text-warning mb-1" id="inactive-users-count">0</h5>
+          <small class="text-muted">Usuários Inativos</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 bg-primary bg-opacity-10">
+        <div class="card-body text-center">
+          <i class="fas fa-user-shield text-primary fa-2x mb-2"></i>
+          <h5 class="text-primary mb-1" id="admin-users-count">0</h5>
+          <small class="text-muted">Administradores</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 bg-info bg-opacity-10">
+        <div class="card-body text-center">
+          <i class="fas fa-users text-info fa-2x mb-2"></i>
+          <h5 class="text-info mb-1" id="total-users-count">0</h5>
+          <small class="text-muted">Total de Usuários</small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filtros e Busca -->
+  <div class="card mb-4">
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-3">
+          <label class="form-label">Buscar Usuário</label>
+          <div class="input-group">
+            <span class="input-group-text"><i class="fas fa-search"></i></span>
+            <input type="text" class="form-control" id="user-search" placeholder="Nome, email ou CPF...">
+          </div>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label">Nível de Acesso</label>
+          <select class="form-select" id="role-filter">
+            <option value="">Todos os Níveis</option>
+            <option value="admin">Administrador</option>
+            <option value="manager">Gerente</option>
+            <option value="operator">Operador</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label">Status</label>
+          <select class="form-select" id="status-filter">
+            <option value="">Todos os Status</option>
+            <option value="active">Ativo</option>
+            <option value="inactive">Inativo</option>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label invisible">Ações</label>
+          <div class="d-flex gap-2">
+            <button class="btn btn-outline-secondary" id="refresh-users" title="Atualizar">
+              <i class="fas fa-sync-alt"></i>
+            </button>
+            <button class="btn btn-outline-success" id="export-users" title="Exportar" data-role="admin">
+              <i class="fas fa-download"></i>
+            </button>
+            <button class="btn btn-outline-info" id="audit-log" title="Log de Auditoria" data-role="admin">
+              <i class="fas fa-history"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Lista de Usuários -->
+  <div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <h6 class="mb-0">Lista de Usuários</h6>
+      <small class="text-muted">Total: <span id="users-total-count">0</span> usuários</small>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0">
+          <thead class="table-light">
+            <tr>
+              <th width="50">#</th>
+              <th>Usuário</th>
+              <th width="150">CPF</th>
+              <th width="150">Nível de Acesso</th>
+              <th width="100">Status</th>
+              <th width="150">Último Acesso</th>
+              <th width="150" class="text-center">Ações</th>
+            </tr>
+          </thead>
+          <tbody id="users-list">
+            <!-- Lista será preenchida via JavaScript -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal para Novo/Editar Usuário -->
+<div class="modal fade" id="userModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="user-modal-title">Novo Usuário</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+      <div class="modal-body">
+        <form id="user-form" novalidate>
+          <input type="hidden" id="user-id">
+          
+          <div class="row">
+            <div class="col-md-8 mb-3">
+              <label for="user-name" class="form-label">Nome Completo <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" id="user-name" required placeholder="Nome completo do usuário">
+              <div class="invalid-feedback">Nome é obrigatório</div>
+            </div>
+            <div class="col-md-4 mb-3">
+              <label for="user-cpf" class="form-label">CPF <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" id="user-cpf" required placeholder="000.000.000-00" maxlength="14">
+              <div class="invalid-feedback">CPF válido é obrigatório</div>
+            </div>
+          </div>
+          
+          <div class="row">
+            <div class="col-md-8 mb-3">
+              <label for="user-email" class="form-label">Email (Login) <span class="text-danger">*</span></label>
+              <input type="email" class="form-control" id="user-email" required placeholder="usuario@empresa.com">
+              <div class="invalid-feedback">Email válido é obrigatório</div>
+            </div>
+            <div class="col-md-4 mb-3">
+              <label for="user-phone" class="form-label">Telefone</label>
+              <input type="tel" class="form-control" id="user-phone" placeholder="(11) 99999-9999">
+            </div>
+          </div>
+          
+          <div class="row">
+            <div class="col-md-4 mb-3">
+              <label for="user-role" class="form-label">Nível de Acesso <span class="text-danger">*</span></label>
+              <select class="form-select" id="user-role" required>
+                <option value="">Selecione o nível...</option>
+                <option value="admin">Administrador</option>
+                <option value="manager">Gerente</option>
+                <option value="operator">Operador</option>
+              </select>
+              <div class="invalid-feedback">Nível de acesso é obrigatório</div>
+            </div>
+            <div class="col-md-4 mb-3">
+              <label for="user-status" class="form-label">Status <span class="text-danger">*</span></label>
+              <select class="form-select" id="user-status" required>
+                <option value="">Selecione o status...</option>
+                <option value="active">Ativo</option>
+                <option value="inactive">Inativo</option>
+              </select>
+              <div class="invalid-feedback">Status é obrigatório</div>
+            </div>
+            <div class="col-md-4 mb-3" id="password-container">
+              <label for="user-password" class="form-label">Senha <span class="text-danger" id="password-required">*</span></label>
+              <div class="input-group">
+                <input type="password" class="form-control" id="user-password" placeholder="Mínimo 6 caracteres">
+                <button class="btn btn-outline-secondary" type="button" id="toggle-password">
+                  <i class="fas fa-eye"></i>
+                </button>
+              </div>
+              <div class="invalid-feedback">Senha deve ter pelo menos 6 caracteres</div>
+              <div class="form-text" id="password-help">Deixe em branco para manter a senha atual</div>
+            </div>
+          </div>
+          
+          <!-- Permissões por Nível -->
+          <div class="mb-3">
+            <label class="form-label">Permissões por Nível</label>
+            <div class="card bg-light">
+              <div class="card-body py-2">
+                <div class="row text-center">
+                  <div class="col-md-4">
+                    <small class="text-muted d-block">
+                      <strong>Operador:</strong><br>
+                      Carregamentos, Docas (visualizar)
+                    </small>
+                  </div>
+                  <div class="col-md-4">
+                    <small class="text-muted d-block">
+                      <strong>Gerente:</strong><br>
+                      + Motoristas, Veículos, Relatórios
+                    </small>
+                  </div>
+                  <div class="col-md-4">
+                    <small class="text-muted d-block">
+                      <strong>Administrador:</strong><br>
+                      + Usuários, Configurações
+                    </small>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="mb-3">
+            <label for="user-notes" class="form-label">Observações</label>
+            <textarea class="form-control" id="user-notes" rows="2" placeholder="Observações sobre o usuário (opcional)"></textarea>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="save-user-btn">
+          <span class="spinner-border spinner-border-sm d-none" id="save-user-spinner"></span>
+          <span id="save-user-text">Salvar</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal para Visualizar Usuário -->
+<div class="modal fade" id="viewUserModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Detalhes do Usuário</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row">
+          <div class="col-md-6">
+            <div class="card border-0 bg-light">
+              <div class="card-body">
+                <h6 class="card-title">Informações Pessoais</h6>
+                <table class="table table-sm table-borderless">
+                  <tr>
+                    <td class="text-muted">Nome:</td>
+                    <td id="view-user-name">-</td>
+                  </tr>
+                  <tr>
+                    <td class="text-muted">CPF:</td>
+                    <td id="view-user-cpf">-</td>
+                  </tr>
+                  <tr>
+                    <td class="text-muted">Email:</td>
+                    <td id="view-user-email">-</td>
+                  </tr>
+                  <tr>
+                    <td class="text-muted">Telefone:</td>
+                    <td id="view-user-phone">-</td>
+                  </tr>
+                </table>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="card border-0 bg-light">
+              <div class="card-body">
+                <h6 class="card-title">Acesso e Permissões</h6>
+                <table class="table table-sm table-borderless">
+                  <tr>
+                    <td class="text-muted">Nível:</td>
+                    <td><span id="view-user-role" class="badge">-</span></td>
+                  </tr>
+                  <tr>
+                    <td class="text-muted">Status:</td>
+                    <td><span id="view-user-status" class="badge">-</span></td>
+                  </tr>
+                  <tr>
+                    <td class="text-muted">Criado em:</td>
+                    <td id="view-user-created">-</td>
+                  </tr>
+                  <tr>
+                    <td class="text-muted">Último acesso:</td>
+                    <td id="view-user-last-login">-</td>
+                  </tr>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="mt-3">
+          <h6>Observações</h6>
+          <p class="text-muted" id="view-user-notes">Nenhuma observação registrada.</p>
+        </div>
+        
+        <div class="mt-3">
+          <h6>Histórico de Ações Recentes</h6>
+          <div class="table-responsive">
+            <table class="table table-sm">
+              <thead>
+                <tr>
+                  <th>Data/Hora</th>
+                  <th>Ação</th>
+                  <th>Módulo</th>
+                  <th>IP</th>
+                </tr>
+              </thead>
+              <tbody id="view-user-actions">
+                <tr>
+                  <td colspan="4" class="text-center py-3 text-muted">Carregando histórico...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-warning" id="reset-password-btn" data-role="admin">
+          <i class="fas fa-key me-1"></i> Resetar Senha
+        </button>
+        <button type="button" class="btn btn-outline-primary" id="edit-user-btn" data-role="admin">
+          <i class="fas fa-edit me-1"></i> Editar
+        </button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de Confirmação de Exclusão -->
+<div class="modal fade" id="deleteUserModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Confirmar Exclusão</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+      <div class="modal-body">
+        <div class="text-center">
+          <i class="fas fa-exclamation-triangle text-warning fa-3x mb-3"></i>
+          <h6>Tem certeza que deseja excluir o usuário?</h6>
+          <p class="text-muted">
+            O usuário <strong id="delete-user-name">-</strong> será removido permanentemente.
+            <br><strong>Esta ação não pode ser desfeita e pode afetar a auditoria do sistema.</strong>
+          </p>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-danger" id="confirm-delete-user">
+          <i class="fas fa-trash me-1"></i> Excluir Usuário
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal para Reset de Senha -->
+<div class="modal fade" id="resetPasswordModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Resetar Senha</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+      <div class="modal-body">
+        <p>Tem certeza que deseja resetar a senha do usuário <strong id="reset-user-name">-</strong>?</p>
+        <div class="alert alert-info">
+          <i class="fas fa-info-circle me-2"></i>
+          Uma nova senha temporária será gerada e deve ser comunicada ao usuário.
+        </div>
+        <div class="mb-3">
+          <label for="new-password" class="form-label">Nova Senha</label>
+          <div class="input-group">
+            <input type="password" class="form-control" id="new-password" placeholder="Nova senha (mínimo 6 caracteres)">
+            <button class="btn btn-outline-secondary" type="button" id="toggle-new-password">
+              <i class="fas fa-eye"></i>
+            </button>
+            <button class="btn btn-outline-info" type="button" id="generate-password" title="Gerar senha">
+              <i class="fas fa-dice"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-warning" id="confirm-reset-password">
+          <i class="fas fa-key me-1"></i> Resetar Senha
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

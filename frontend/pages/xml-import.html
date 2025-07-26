@@ -1,0 +1,1012 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Importação XML - DockFlow</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .upload-section {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .upload-zone {
+            border: 3px dashed #3498db;
+            border-radius: 15px;
+            padding: 60px 20px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            background: #f8f9ff;
+        }
+
+        .upload-zone:hover {
+            border-color: #2980b9;
+            background: #e8f0ff;
+            transform: translateY(-2px);
+        }
+
+        .upload-zone.dragover {
+            border-color: #27ae60;
+            background: #e8f5e8;
+        }
+
+        .upload-icon {
+            font-size: 4rem;
+            color: #3498db;
+            margin-bottom: 20px;
+        }
+
+        .upload-text {
+            font-size: 1.3rem;
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+
+        .upload-subtext {
+            color: #7f8c8d;
+            font-size: 1rem;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.1rem;
+            transition: all 0.3s ease;
+            margin: 10px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(52, 152, 219, 0.4);
+        }
+
+        .btn:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .processing {
+            display: none;
+            text-align: center;
+            margin: 30px 0;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .results {
+            display: none;
+        }
+
+        .xml-preview {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 25px;
+            margin-bottom: 30px;
+            border-left: 5px solid #3498db;
+        }
+
+        .xml-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+
+        .info-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border-left: 4px solid #e74c3c;
+        }
+
+        .info-card h4 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            font-size: 1.1rem;
+        }
+
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 0.95rem;
+        }
+
+        .info-label {
+            font-weight: 600;
+            color: #34495e;
+        }
+
+        .info-value {
+            color: #2c3e50;
+            text-align: right;
+            max-width: 60%;
+            word-break: break-word;
+        }
+
+        .delivery-info {
+            border-left-color: #27ae60;
+        }
+
+        .schedule-info {
+            border-left-color: #f39c12;
+        }
+
+        .products-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 25px;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .products-table th {
+            background: #34495e;
+            color: white;
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        .products-table td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #ecf0f1;
+        }
+
+        .products-table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .route-selection {
+            background: #e8f4fd;
+            padding: 25px;
+            border-radius: 10px;
+            margin-bottom: 25px;
+            border: 2px solid #3498db;
+        }
+
+        .route-selection h3 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+        }
+
+        .route-options {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .route-option {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border: 2px solid #ecf0f1;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .route-option:hover {
+            border-color: #3498db;
+            background: #f8f9ff;
+        }
+
+        .route-option.selected {
+            border-color: #27ae60;
+            background: #e8f5e8;
+        }
+
+        .route-option input[type="radio"] {
+            margin-right: 10px;
+        }
+
+        .new-route-form {
+            display: none;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 15px;
+            border: 2px solid #f39c12;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .form-group input, .form-group textarea, .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #ecf0f1;
+            border-radius: 5px;
+            font-size: 1rem;
+        }
+
+        .form-group input:focus, .form-group textarea:focus, .form-group select:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+
+        .action-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 30px;
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
+        }
+
+        .btn-success:hover {
+            box-shadow: 0 5px 15px rgba(39, 174, 96, 0.4);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #95a5a6 0%, #7f8c8d 100%);
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid;
+        }
+
+        .alert-success {
+            background: #d5edda;
+            border-color: #27ae60;
+            color: #155724;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            border-color: #e74c3c;
+            color: #721c24;
+        }
+
+        .alert-warning {
+            background: #fff3cd;
+            border-color: #f39c12;
+            color: #856404;
+        }
+
+        .highlight {
+            background: #fff3cd;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-weight: 600;
+        }
+
+        .loading-text {
+            color: #3498db;
+            font-size: 1.1rem;
+        }
+
+        @media (max-width: 768px) {
+            .content {
+                padding: 20px;
+            }
+            
+            .xml-info {
+                grid-template-columns: 1fr;
+            }
+            
+            .route-options {
+                grid-template-columns: 1fr;
+            }
+            
+            .action-buttons {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📋 Importação XML</h1>
+            <p>Sistema Inteligente de Processamento de Notas Fiscais</p>
+        </div>
+
+        <div class="content">
+            <!-- Seção de Upload -->
+            <div class="upload-section">
+                <div class="upload-zone" id="uploadZone">
+                    <div class="upload-icon">📄</div>
+                    <div class="upload-text">Arraste o arquivo XML aqui</div>
+                    <div class="upload-subtext">ou clique para selecionar</div>
+                    <input type="file" id="fileInput" accept=".xml" />
+                </div>
+                <button class="btn" onclick="document.getElementById('fileInput').click()">
+                    📁 Selecionar Arquivo XML
+                </button>
+            </div>
+
+            <!-- Processamento -->
+            <div class="processing" id="processing">
+                <div class="spinner"></div>
+                <div class="loading-text">🤖 Processando XML automaticamente...</div>
+                <p>Extraindo dados inteligentemente dos campos</p>
+            </div>
+
+            <!-- Resultados -->
+            <div class="results" id="results">
+                <div class="xml-preview">
+                    <h2>📊 Dados Extraídos Automaticamente</h2>
+                    
+                    <!-- Informações do XML -->
+                    <div class="xml-info" id="xmlInfo">
+                        <!-- Dados da Nota -->
+                        <div class="info-card">
+                            <h4>📋 Dados da Nota Fiscal</h4>
+                            <div id="nfInfo"></div>
+                        </div>
+
+                        <!-- Endereço de Entrega -->
+                        <div class="info-card delivery-info">
+                            <h4>🏠 Endereço de Entrega</h4>
+                            <div id="deliveryInfo"></div>
+                        </div>
+
+                        <!-- Agendamento -->
+                        <div class="info-card schedule-info">
+                            <h4>⏰ Agendamento</h4>
+                            <div id="scheduleInfo"></div>
+                        </div>
+                    </div>
+
+                    <!-- Produtos -->
+                    <h3>📦 Produtos da Nota Fiscal</h3>
+                    <table class="products-table" id="productsTable">
+                        <thead>
+                            <tr>
+                                <th>Código</th>
+                                <th>Descrição</th>
+                                <th>Quantidade</th>
+                                <th>Unidade</th>
+                                <th>Valor Unit.</th>
+                                <th>Valor Total</th>
+                            </tr>
+                        </thead>
+                        <tbody id="productsBody">
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Seleção de Rota -->
+                <div class="route-selection">
+                    <h3>🗺️ Associar à Rota</h3>
+                    <div class="route-options" id="routeOptions">
+                        <div class="route-option" onclick="selectRouteOption('existing')">
+                            <input type="radio" name="routeType" value="existing" id="existingRoute">
+                            <label for="existingRoute">📋 Usar rota existente</label>
+                        </div>
+                        <div class="route-option" onclick="selectRouteOption('new')">
+                            <input type="radio" name="routeType" value="new" id="newRoute">
+                            <label for="newRoute">🆕 Criar nova rota</label>
+                        </div>
+                    </div>
+
+                    <!-- Seleção de rota existente -->
+                    <div id="existingRouteSelect" style="display: none;">
+                        <select id="routeSelect" class="form-group">
+                            <option value="">Selecione uma rota...</option>
+                        </select>
+                    </div>
+
+                    <!-- Formulário nova rota -->
+                    <div class="new-route-form" id="newRouteForm">
+                        <div class="form-group">
+                            <label for="routeName">Nome da Rota:</label>
+                            <input type="text" id="routeName" placeholder="Ex: Entrega SODEXO - 20/07/2025">
+                        </div>
+                        <div class="form-group">
+                            <label for="routeDestination">Endereço de Destino:</label>
+                            <textarea id="routeDestination" rows="3" placeholder="Endereço completo extraído do XML"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="routeDate">Data Prevista:</label>
+                            <input type="date" id="routeDate">
+                        </div>
+                        <div class="form-group">
+                            <label for="routeTime">Horário (se especificado):</label>
+                            <input type="text" id="routeTime" placeholder="Ex: 08:00 às 17:00">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Botões de Ação -->
+                <div class="action-buttons">
+                    <button class="btn btn-success" onclick="importXML()">
+                        ✅ Importar e Criar Carregamento
+                    </button>
+                    <button class="btn btn-secondary" onclick="resetForm()">
+                        🔄 Processar Novo XML
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let xmlData = null;
+        let extractedData = null;
+
+        // Configurar eventos de drag and drop
+        const uploadZone = document.getElementById('uploadZone');
+        const fileInput = document.getElementById('fileInput');
+
+        uploadZone.addEventListener('click', () => fileInput.click());
+        uploadZone.addEventListener('dragover', handleDragOver);
+        uploadZone.addEventListener('dragleave', handleDragLeave);
+        uploadZone.addEventListener('drop', handleDrop);
+        fileInput.addEventListener('change', handleFileSelect);
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            uploadZone.classList.add('dragover');
+        }
+
+        function handleDragLeave(e) {
+            e.preventDefault();
+            uploadZone.classList.remove('dragover');
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            uploadZone.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                processFile(files[0]);
+            }
+        }
+
+        function handleFileSelect(e) {
+            const file = e.target.files[0];
+            if (file) {
+                processFile(file);
+            }
+        }
+
+        function processFile(file) {
+            if (!file.name.toLowerCase().endsWith('.xml')) {
+                showAlert('Por favor, selecione um arquivo XML válido.', 'error');
+                return;
+            }
+
+            // Mostrar processamento
+            document.querySelector('.upload-section').style.display = 'none';
+            document.getElementById('processing').style.display = 'block';
+
+            // Simular processamento
+            setTimeout(() => {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        const xmlText = e.target.result;
+                        xmlData = xmlText;
+                        extractedData = parseXMLIntelligently(xmlText);
+                        displayResults();
+                    } catch (error) {
+                        showAlert('Erro ao processar o arquivo XML: ' + error.message, 'error');
+                        resetToUpload();
+                    }
+                };
+                reader.readAsText(file);
+            }, 2000);
+        }
+
+        function parseXMLIntelligently(xmlText) {
+            // Criar parser DOM
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
+
+            // Verificar se houve erro no parsing
+            const parserError = xmlDoc.querySelector('parsererror');
+            if (parserError) {
+                throw new Error('XML inválido');
+            }
+
+            const data = {
+                notaFiscal: {},
+                endereco: {},
+                agendamento: {},
+                produtos: [],
+                observacoes: {}
+            };
+
+            // Extrair dados básicos da nota
+            const ide = xmlDoc.querySelector('ide');
+            if (ide) {
+                data.notaFiscal = {
+                    numero: getTextContent(ide, 'nNF'),
+                    serie: getTextContent(ide, 'serie'),
+                    dataEmissao: formatDate(getTextContent(ide, 'dhEmi')),
+                    natureza: getTextContent(ide, 'natOp')
+                };
+            }
+
+            // Extrair dados do destinatário
+            const dest = xmlDoc.querySelector('dest');
+            if (dest) {
+                const enderDest = dest.querySelector('enderDest');
+                data.destinatario = {
+                    nome: getTextContent(dest, 'xNome'),
+                    cnpj: getTextContent(dest, 'CNPJ'),
+                    endereco: enderDest ? {
+                        logradouro: getTextContent(enderDest, 'xLgr'),
+                        numero: getTextContent(enderDest, 'nro'),
+                        bairro: getTextContent(enderDest, 'xBairro'),
+                        cidade: getTextContent(enderDest, 'xMun'),
+                        uf: getTextContent(enderDest, 'UF'),
+                        cep: getTextContent(enderDest, 'CEP')
+                    } : {}
+                };
+            }
+
+            // Extrair informações adicionais (endereço real de entrega, agendamento)
+            const infAdFisco = getTextContent(xmlDoc, 'infAdFisco') || '';
+            const infCpl = getTextContent(xmlDoc, 'infCpl') || '';
+            const combinedInfo = infAdFisco + ' ' + infCpl;
+
+            // Extrair endereço real de entrega
+            data.endereco = extractRealDeliveryAddress(combinedInfo, data.destinatario.endereco);
+
+            // Extrair informações de agendamento
+            data.agendamento = extractScheduleInfo(combinedInfo);
+
+            // Extrair número do pedido/OC
+            data.numeroPedido = extractOrderNumber(infCpl);
+
+            // Extrair produtos
+            const produtos = xmlDoc.querySelectorAll('det');
+            produtos.forEach(det => {
+                const prod = det.querySelector('prod');
+                if (prod) {
+                    data.produtos.push({
+                        codigo: getTextContent(prod, 'cProd'),
+                        ean: getTextContent(prod, 'cEAN'),
+                        descricao: getTextContent(prod, 'xProd'),
+                        quantidade: parseFloat(getTextContent(prod, 'qCom')) || 0,
+                        unidade: getTextContent(prod, 'uCom'),
+                        valorUnitario: parseFloat(getTextContent(prod, 'vUnCom')) || 0,
+                        valorTotal: parseFloat(getTextContent(prod, 'vProd')) || 0
+                    });
+                }
+            });
+
+            // Extrair totais
+            const total = xmlDoc.querySelector('ICMSTot');
+            if (total) {
+                data.totais = {
+                    produtos: parseFloat(getTextContent(total, 'vProd')) || 0,
+                    total: parseFloat(getTextContent(total, 'vNF')) || 0
+                };
+            }
+
+            return data;
+        }
+
+        function getTextContent(parent, tagName) {
+            const element = parent.querySelector(tagName);
+            return element ? element.textContent.trim() : '';
+        }
+
+        function formatDate(dateString) {
+            if (!dateString) return '';
+            const date = new Date(dateString);
+            return date.toLocaleDateString('pt-BR');
+        }
+
+        function extractRealDeliveryAddress(text, defaultAddress) {
+            // Padrões para detectar endereço real de entrega
+            const patterns = [
+                /Local de entrega:\s*([^|]+)/i,
+                /XENTX-([^|]+)/i,
+                /ENDERECO DE ENTREGA:\s*([^-]+)/i,
+                /Entrega[^-]+-\s*([^|]+)/i
+            ];
+
+            for (const pattern of patterns) {
+                const match = text.match(pattern);
+                if (match) {
+                    const endereco = match[1].trim();
+                    return {
+                        encontrado: true,
+                        tipo: 'Extraído das observações',
+                        endereco: endereco,
+                        original: defaultAddress
+                    };
+                }
+            }
+
+            // Se não encontrou, usar o endereço padrão
+            const enderecoCompleto = `${defaultAddress.logradouro}, ${defaultAddress.numero} - ${defaultAddress.bairro}, ${defaultAddress.cidade}/${defaultAddress.uf}`;
+            return {
+                encontrado: false,
+                tipo: 'Endereço padrão do destinatário',
+                endereco: enderecoCompleto,
+                original: defaultAddress
+            };
+        }
+
+        function extractScheduleInfo(text) {
+            const info = {
+                temAgendamento: false,
+                data: '',
+                horario: '',
+                instrucoes: ''
+            };
+
+            // Detectar data de entrega
+            const dataPattern = /Entrega\s+(\d{2}\/\d{2})/i;
+            const dataMatch = text.match(dataPattern);
+            if (dataMatch) {
+                info.temAgendamento = true;
+                info.data = dataMatch[1];
+            }
+
+            // Detectar horário
+            const horarioPatterns = [
+                /(\d{1,2}[hH]\s*[àas]*\s*\d{1,2}[hH:\d]*)/g,
+                /(\d{1,2}:\d{2}\s*[àas]*\s*\d{1,2}:\d{2})/g,
+                /(das\s+\d+[hH].*?às\s+\d+[hH])/gi
+            ];
+
+            for (const pattern of horarioPatterns) {
+                const matches = text.match(pattern);
+                if (matches) {
+                    info.horario = matches[0];
+                    info.temAgendamento = true;
+                    break;
+                }
+            }
+
+            // Detectar instruções especiais
+            const instrucaoPatterns = [
+                /REALIZAR AGENDAMENTO[^|]*/i,
+                /RECEBIMENTO[^|]*/i,
+                /Entrega[^|]*/i
+            ];
+
+            for (const pattern of instrucaoPatterns) {
+                const match = text.match(pattern);
+                if (match) {
+                    info.instrucoes = match[0];
+                    break;
+                }
+            }
+
+            return info;
+        }
+
+        function extractOrderNumber(text) {
+            const patterns = [
+                /OC\s+(\d+)/i,
+                /-\s*OC\s+(\d+)/i,
+                /(\d+)\s*-/
+            ];
+
+            for (const pattern of patterns) {
+                const match = text.match(pattern);
+                if (match) {
+                    return match[1];
+                }
+            }
+
+            return '';
+        }
+
+        function displayResults() {
+            document.getElementById('processing').style.display = 'none';
+            document.getElementById('results').style.display = 'block';
+
+            // Preencher informações da nota
+            const nfInfo = document.getElementById('nfInfo');
+            nfInfo.innerHTML = `
+                <div class="info-item">
+                    <span class="info-label">Número:</span>
+                    <span class="info-value">${extractedData.notaFiscal.numero}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Série:</span>
+                    <span class="info-value">${extractedData.notaFiscal.serie}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Data:</span>
+                    <span class="info-value">${extractedData.notaFiscal.dataEmissao}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Cliente:</span>
+                    <span class="info-value">${extractedData.destinatario.nome}</span>
+                </div>
+                ${extractedData.numeroPedido ? `
+                <div class="info-item">
+                    <span class="info-label">Pedido/OC:</span>
+                    <span class="info-value highlight">${extractedData.numeroPedido}</span>
+                </div>` : ''}
+            `;
+
+            // Preencher endereço de entrega
+            const deliveryInfo = document.getElementById('deliveryInfo');
+            deliveryInfo.innerHTML = `
+                <div class="info-item">
+                    <span class="info-label">Tipo:</span>
+                    <span class="info-value">${extractedData.endereco.tipo}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Endereço:</span>
+                    <span class="info-value">${extractedData.endereco.endereco}</span>
+                </div>
+                ${!extractedData.endereco.encontrado ? `
+                <div class="alert alert-warning">
+                    ⚠️ Usando endereço padrão do destinatário. Verifique se está correto.
+                </div>` : ''}
+            `;
+
+            // Preencher agendamento
+            const scheduleInfo = document.getElementById('scheduleInfo');
+            if (extractedData.agendamento.temAgendamento) {
+                scheduleInfo.innerHTML = `
+                    ${extractedData.agendamento.data ? `
+                    <div class="info-item">
+                        <span class="info-label">Data:</span>
+                        <span class="info-value highlight">${extractedData.agendamento.data}</span>
+                    </div>` : ''}
+                    ${extractedData.agendamento.horario ? `
+                    <div class="info-item">
+                        <span class="info-label">Horário:</span>
+                        <span class="info-value highlight">${extractedData.agendamento.horario}</span>
+                    </div>` : ''}
+                    ${extractedData.agendamento.instrucoes ? `
+                    <div class="info-item">
+                        <span class="info-label">Instruções:</span>
+                        <span class="info-value">${extractedData.agendamento.instrucoes}</span>
+                    </div>` : ''}
+                `;
+            } else {
+                scheduleInfo.innerHTML = '<div class="info-value">Nenhum agendamento específico detectado</div>';
+            }
+
+            // Preencher tabela de produtos
+            const productsBody = document.getElementById('productsBody');
+            productsBody.innerHTML = extractedData.produtos.map(produto => `
+                <tr>
+                    <td>${produto.codigo}</td>
+                    <td>${produto.descricao}</td>
+                    <td>${produto.quantidade.toLocaleString('pt-BR')}</td>
+                    <td>${produto.unidade}</td>
+                    <td>R$ ${produto.valorUnitario.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
+                    <td>R$ ${produto.valorTotal.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
+                </tr>
+            `).join('');
+
+            // Pré-preencher formulário de nova rota
+            const hoje = new Date();
+            const amanha = new Date(hoje);
+            amanha.setDate(hoje.getDate() + 1);
+            
+            document.getElementById('routeName').value = `Entrega ${extractedData.destinatario.nome.split(' ')[0]} - ${amanha.toLocaleDateString('pt-BR')}`;
+            document.getElementById('routeDestination').value = extractedData.endereco.endereco;
+            document.getElementById('routeDate').value = amanha.toISOString().split('T')[0];
+            
+            if (extractedData.agendamento.horario) {
+                document.getElementById('routeTime').value = extractedData.agendamento.horario;
+            }
+
+            // Carregar rotas existentes
+            loadExistingRoutes();
+        }
+
+        function selectRouteOption(type) {
+            // Limpar seleções anteriores
+            document.querySelectorAll('.route-option').forEach(option => {
+                option.classList.remove('selected');
+            });
+
+            // Selecionar nova opção
+            event.currentTarget.classList.add('selected');
+            document.getElementById(type + 'Route').checked = true;
+
+            // Mostrar/ocultar formulários
+            if (type === 'existing') {
+                document.getElementById('existingRouteSelect').style.display = 'block';
+                document.getElementById('newRouteForm').style.display = 'none';
+            } else {
+                document.getElementById('existingRouteSelect').style.display = 'none';
+                document.getElementById('newRouteForm').style.display = 'block';
+            }
+        }
+
+        function loadExistingRoutes() {
+            // Simular carregamento de rotas existentes
+            const routeSelect = document.getElementById('routeSelect');
+            const rotasExemplo = [
+                'Rota São Paulo Centro - 20/07/2025',
+                'Rota Campinas Industrial - 21/07/2025',
+                'Rota ABC Paulista - 22/07/2025'
+            ];
+
+            routeSelect.innerHTML = '<option value="">Selecione uma rota...</option>' +
+                rotasExemplo.map((rota, index) => `<option value="${index + 1}">${rota}</option>`).join('');
+        }
+
+        function importXML() {
+            // Verificar se uma opção foi selecionada
+            const routeType = document.querySelector('input[name="routeType"]:checked');
+            if (!routeType) {
+                showAlert('Por favor, selecione uma opção de rota.', 'warning');
+                return;
+            }
+
+            let routeData = {};
+
+            if (routeType.value === 'existing') {
+                const selectedRoute = document.getElementById('routeSelect').value;
+                if (!selectedRoute) {
+                    showAlert('Por favor, selecione uma rota existente.', 'warning');
+                    return;
+                }
+                routeData.type = 'existing';
+                routeData.routeId = selectedRoute;
+            } else {
+                // Validar dados da nova rota
+                const routeName = document.getElementById('routeName').value;
+                const routeDestination = document.getElementById('routeDestination').value;
+                const routeDate = document.getElementById('routeDate').value;
+
+                if (!routeName || !routeDestination || !routeDate) {
+                    showAlert('Por favor, preencha todos os campos obrigatórios da nova rota.', 'warning');
+                    return;
+                }
+
+                routeData = {
+                    type: 'new',
+                    name: routeName,
+                    destination: routeDestination,
+                    date: routeDate,
+                    time: document.getElementById('routeTime').value
+                };
+            }
+
+            // Simular importação
+            showAlert('🤖 Processando importação...', 'success');
+            
+            setTimeout(() => {
+                const carregamentoData = {
+                    xml: extractedData,
+                    route: routeData,
+                    imported: true,
+                    timestamp: new Date().toISOString()
+                };
+
+                showAlert(`✅ XML importado com sucesso! 
+                    <br><strong>Nota Fiscal:</strong> ${extractedData.notaFiscal.numero}
+                    <br><strong>Produtos:</strong> ${extractedData.produtos.length} itens
+                    <br><strong>Rota:</strong> ${routeData.type === 'new' ? routeData.name : 'Rota existente selecionada'}
+                    <br><br>O carregamento foi criado automaticamente e está pronto para bipagem!`, 'success');
+
+                // Salvar no localStorage para demonstração
+                const savedLoads = JSON.parse(localStorage.getItem('dockflow_loads') || '[]');
+                savedLoads.push(carregamentoData);
+                localStorage.setItem('dockflow_loads', JSON.stringify(savedLoads));
+
+            }, 2000);
+        }
+
+        function resetForm() {
+            document.getElementById('results').style.display = 'none';
+            document.querySelector('.upload-section').style.display = 'block';
+            document.getElementById('fileInput').value = '';
+            xmlData = null;
+            extractedData = null;
+        }
+
+        function resetToUpload() {
+            document.getElementById('processing').style.display = 'none';
+            document.querySelector('.upload-section').style.display = 'block';
+        }
+
+        function showAlert(message, type) {
+            // Remover alertas existentes
+            document.querySelectorAll('.alert').forEach(alert => alert.remove());
+
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type}`;
+            alertDiv.innerHTML = message;
+
+            const results = document.getElementById('results');
+            if (results.style.display !== 'none') {
+                results.appendChild(alertDiv);
+            } else {
+                document.querySelector('.content').appendChild(alertDiv);
+            }
+
+            // Auto-remover após 10 segundos para alertas de sucesso
+            if (type === 'success') {
+                setTimeout(() => {
+                    if (alertDiv.parentNode) {
+                        alertDiv.remove();
+                    }
+                }, 10000);
+            }
+        }
+    </script>
+</body>
+</html>

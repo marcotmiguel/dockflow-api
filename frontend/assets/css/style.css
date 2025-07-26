@@ -1,0 +1,152 @@
+/* assets/css/style.css */
+
+:root {
+  --primary-color: #3498db;
+  --secondary-color: #2c3e50;
+  --success-color: #2ecc71;
+  --danger-color: #e74c3c;
+  --warning-color: #f39c12;
+  --info-color: #3498db;
+  --light-color: #ecf0f1;
+  --dark-color: #2c3e50;
+}
+
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background-color: #f8f9fa;
+  color: #333;
+}
+
+/* Estilos para a página de login */
+#login-container {
+  margin-top: 10vh;
+}
+
+#login-container .card {
+  border: none;
+  border-radius: 10px;
+}
+
+.btn-primary {
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+}
+
+.btn-primary:hover {
+  background-color: #2980b9;
+  border-color: #2980b9;
+}
+
+/* Estilos para o layout principal */
+.sidebar {
+  background-color: var(--dark-color);
+  color: white;
+  min-height: 100vh;
+  padding-top: 20px;
+}
+
+.sidebar .nav-link {
+  color: rgba(255, 255, 255, 0.8);
+  border-radius: 5px;
+  margin-bottom: 5px;
+  padding: 10px 15px;
+}
+
+.sidebar .nav-link:hover,
+.sidebar .nav-link.active {
+  color: white;
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.sidebar .nav-link i {
+  width: 25px;
+  text-align: center;
+  margin-right: 10px;
+}
+
+/* Estilos para o cabeçalho */
+.navbar {
+  background-color: white;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+}
+
+/* Estilos para os cards de estatísticas */
+.stat-card {
+  border-radius: 10px;
+  border: none;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+}
+
+.stat-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.1);
+}
+
+/* Estilos para os cards de dock */
+.dock-card {
+  border-radius: 10px;
+  border: none;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+}
+
+.dock-card.available {
+  border-left: 5px solid var(--success-color);
+}
+
+.dock-card.occupied {
+  border-left: 5px solid var(--warning-color);
+}
+
+.dock-card.maintenance {
+  border-left: 5px solid var(--danger-color);
+}
+
+/* Estilos para tabelas */
+.table th {
+  background-color: #f8f9fa;
+  font-weight: 600;
+}
+
+.loading-status-scheduled {
+  color: var(--info-color);
+}
+
+.loading-status-in_progress {
+  color: var(--warning-color);
+}
+
+.loading-status-completed {
+  color: var(--success-color);
+}
+
+.loading-status-canceled {
+  color: var(--danger-color);
+}
+
+/* Responsividade */
+@media (max-width: 992px) {
+  .sidebar {
+    min-height: auto;
+  }
+}
+
+/* Animações */
+.fade-enter {
+  opacity: 0;
+}
+
+.fade-enter-active {
+  opacity: 1;
+  transition: opacity 0.3s;
+}
+
+.fade-exit {
+  opacity: 1;
+}
+
+.fade-exit-active {
+  opacity: 0;
+  transition: opacity 0.3s;
+}

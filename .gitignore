@@ -1,0 +1,70 @@
+# 🔐 ARQUIVOS SENSÍVEIS - NUNCA ENVIAR PARA O SERVIDOR
+.env
+.env.local
+.env.production
+.env.staging
+
+# 📝 LOGS
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# 🗄️ BANCO DE DADOS
+*.sqlite
+*.db
+database.sql
+backups/
+
+# 📂 NODE.JS
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.yarn-integrity
+
+# 📁 UPLOADS E TEMPORÁRIOS
+uploads/
+temp/
+tmp/
+*.tmp
+
+# 🖥️ SISTEMA OPERACIONAL
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# 💻 EDITORES
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 🔧 CONFIGURAÇÕES LOCAIS
+config/local.js
+config/production.js
+
+# 📊 RELATÓRIOS
+coverage/
+.nyc_output
+
+# 🚀 DEPLOY
+dist/
+build/
+.deploy/
+
+# 🔑 CERTIFICADOS SSL
+*.pem
+*.key
+*.crt
+*.cert
+
+# 📄 DOCUMENTAÇÃO GERADA
+docs/generated/

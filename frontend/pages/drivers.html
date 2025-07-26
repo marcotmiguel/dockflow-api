@@ -1,0 +1,275 @@
+<!-- PÁGINA COMPLETA DE MOTORISTAS COM CPF -->
+<div class="content-page">
+  <!-- Cabeçalho da página -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h4 class="mb-1">Gerenciamento de Motoristas</h4>
+      <p class="text-muted mb-0">Cadastre e gerencie motoristas do sistema</p>
+    </div>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#driverModal">
+      <i class="fas fa-plus me-2"></i>
+      Novo Motorista
+    </button>
+  </div>
+
+  <!-- Filtros e busca -->
+  <div class="card mb-4">
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-6">
+          <div class="input-group">
+            <span class="input-group-text">
+              <i class="fas fa-search"></i>
+            </span>
+            <input type="text" class="form-control" id="driver-search" placeholder="Buscar por nome, telefone ou CPF...">
+          </div>
+        </div>
+        <div class="col-md-3">
+          <button class="btn btn-outline-secondary w-100" id="refresh-drivers">
+            <i class="fas fa-sync-alt me-1"></i>
+            Atualizar
+          </button>
+        </div>
+        <div class="col-md-3">
+          <button class="btn btn-outline-success w-100" id="export-drivers">
+            <i class="fas fa-download me-1"></i>
+            Exportar
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Lista de motoristas -->
+  <div class="card">
+    <div class="card-header">
+      <h5 class="mb-0">Lista de Motoristas</h5>
+    </div>
+    <div class="card-body">
+      <div class="table-responsive">
+        <table class="table table-hover">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Motorista</th>
+              <th>CPF</th>
+              <th>Telefone</th>
+              <th>Último Carregamento</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody id="drivers-list">
+            <tr>
+              <td colspan="6" class="text-center py-5">
+                <div class="spinner-border text-primary" role="status">
+                  <span class="visually-hidden">Carregando...</span>
+                </div>
+                <p class="text-muted mt-2 mb-0">Carregando lista de motoristas...</p>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL PARA CADASTRO/EDIÇÃO DE MOTORISTA (COM CPF) -->
+<div class="modal fade" id="driverModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="driver-modal-title">Novo Motorista</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+      <div class="modal-body">
+        <form id="driver-form">
+          <input type="hidden" id="driver-id" value="">
+          
+          <div class="mb-3">
+            <label for="driver-name" class="form-label">Nome do Motorista *</label>
+            <input type="text" class="form-control" id="driver-name" placeholder="Nome completo" required>
+          </div>
+          
+          <div class="mb-3">
+            <label for="driver-cpf" class="form-label">CPF *</label>
+            <input type="text" class="form-control" id="driver-cpf" placeholder="000.000.000-00" maxlength="14" required>
+            <div class="form-text">Documento de identidade do motorista.</div>
+          </div>
+          
+          <div class="mb-3">
+            <label for="driver-phone" class="form-label">Telefone (WhatsApp) *</label>
+            <input type="tel" class="form-control" id="driver-phone" placeholder="(00) 00000-0000" required>
+            <div class="form-text">Número usado para comunicação via WhatsApp.</div>
+          </div>
+          
+          <div class="mb-3">
+            <label for="driver-notes" class="form-label">Observações (opcional)</label>
+            <textarea class="form-control" id="driver-notes" rows="3" placeholder="Informações adicionais sobre o motorista..."></textarea>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="save-driver-btn">
+          <span class="spinner-border spinner-border-sm d-none" id="save-driver-spinner"></span>
+          <span id="save-driver-text">Salvar</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL PARA CONFIRMAÇÃO DE EXCLUSÃO -->
+<div class="modal fade" id="deleteDriverModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Confirmar Exclusão</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+      <div class="modal-body">
+        <p>Tem certeza que deseja excluir o motorista <strong id="delete-driver-name"></strong>?</p>
+        <p class="text-muted small">Esta ação não pode ser desfeita.</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-danger" id="confirm-delete-driver">
+          <i class="fas fa-trash me-1"></i> Excluir Motorista
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL PARA VISUALIZAÇÃO DE MOTORISTA -->
+<div class="modal fade" id="viewDriverModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Detalhes do Motorista</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row">
+          <div class="col-md-6">
+            <div class="card">
+              <div class="card-body">
+                <h6 class="card-title">Informações Pessoais</h6>
+                <table class="table table-sm table-borderless">
+                  <tr>
+                    <td><strong>Nome:</strong></td>
+                    <td id="view-driver-name">-</td>
+                  </tr>
+                  <tr>
+                    <td><strong>CPF:</strong></td>
+                    <td id="view-driver-cpf">-</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Telefone:</strong></td>
+                    <td id="view-driver-phone">-</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Cadastrado em:</strong></td>
+                    <td id="view-driver-created">-</td>
+                  </tr>
+                </table>
+                <div class="mt-3">
+                  <strong>Observações:</strong>
+                  <p class="text-muted" id="view-driver-notes">-</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="col-md-6">
+            <div class="card">
+              <div class="card-body">
+                <h6 class="card-title">Estatísticas de Carregamentos</h6>
+                <table class="table table-sm table-borderless">
+                  <tr>
+                    <td><strong>Total:</strong></td>
+                    <td><span class="badge bg-primary" id="view-driver-total-loadings">0</span></td>
+                  </tr>
+                  <tr>
+                    <td><strong>Concluídos:</strong></td>
+                    <td><span class="badge bg-success" id="view-driver-completed-loadings">0</span></td>
+                  </tr>
+                  <tr>
+                    <td><strong>Último Carregamento:</strong></td>
+                    <td id="view-driver-last-loading">-</td>
+                  </tr>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="row mt-4">
+          <div class="col-12">
+            <div class="card">
+              <div class="card-header">
+                <h6 class="mb-0">Histórico de Carregamentos (Últimos 5)</h6>
+              </div>
+              <div class="card-body">
+                <div class="table-responsive">
+                  <table class="table table-sm table-hover">
+                    <thead>
+                      <tr>
+                        <th>Data</th>
+                        <th>Veículo</th>
+                        <th>Doca</th>
+                        <th>Status</th>
+                        <th></th>
+                      </tr>
+                    </thead>
+                    <tbody id="view-driver-loadings">
+                      <tr>
+                        <td colspan="5" class="text-center py-3 text-muted">Carregando...</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-success" id="send-whatsapp-btn">
+          <i class="fab fa-whatsapp me-1"></i> WhatsApp
+        </button>
+        <button type="button" class="btn btn-outline-primary" id="new-loading-for-driver-btn">
+          <i class="fas fa-plus me-1"></i> Novo Carregamento
+        </button>
+        <button type="button" class="btn btn-outline-secondary" id="edit-driver-btn">
+          <i class="fas fa-edit me-1"></i> Editar
+        </button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Script para máscara de CPF -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Adicionar máscara de CPF quando o modal for mostrado
+  const driverModal = document.getElementById('driverModal');
+  if (driverModal) {
+    driverModal.addEventListener('shown.bs.modal', function() {
+      const cpfField = document.getElementById('driver-cpf');
+      if (cpfField && !cpfField.dataset.maskAdded) {
+        cpfField.addEventListener('input', function(e) {
+          let value = e.target.value.replace(/\D/g, '');
+          value = value.replace(/(\d{3})(\d)/, '$1.$2');
+          value = value.replace(/(\d{3})(\d)/, '$1.$2');
+          value = value.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+          e.target.value = value;
+        });
+        cpfField.dataset.maskAdded = 'true';
+      }
+    });
+  }
+});
+</script>

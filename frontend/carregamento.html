@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Carregamentos - DockFlow</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .scan-history {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .scan-item {
+            border-left: 3px solid #28a745;
+        }
+        
+        .queue-item {
+            transition: all 0.3s ease;
+        }
+        
+        .queue-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        
+        .loading-indicator {
+            border-left: 4px solid #007bff;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { border-left-color: #007bff; }
+            50% { border-left-color: #0056b3; }
+            100% { border-left-color: #007bff; }
+        }
+        
+        .status-waiting { border-left: 4px solid #ffc107; }
+        .status-approved { border-left: 4px solid #17a2b8; }
+        .status-loading { border-left: 4px solid #007bff; }
+        .status-completed { border-left: 4px solid #28a745; }
+        .status-cancelled { border-left: 4px solid #dc3545; }
+        
+        .barcode-input {
+            font-family: 'Courier New', monospace;
+            font-size: 1.1em;
+        }
+        
+        .stats-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .stats-card-2 {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+        
+        .stats-card-3 {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+        }
+        
+        .stats-card-4 {
+            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="content-page">
+        <!-- Container de alertas -->
+        <div id="alert-container"></div>
+        
+        <!-- Header com estatísticas -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card stats-card">
+                    <div class="card-body text-center">
+                        <i class="fas fa-clock fa-2x mb-2"></i>
+                        <h4 id="waiting-count">0</h4>
+                        <small>Aguardando</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stats-card-2">
+                    <div class="card-body text-center">
+                        <i class="fas fa-check-circle fa-2x mb-2"></i>
+                        <h4 id="approved-count">0</h4>
+                        <small>Aprovados</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stats-card-3">
+                    <div class="card-body text-center">
+                        <i class="fas fa-truck-loading fa-2x mb-2"></i>
+                        <h4 id="loading-count">0</h4>
+                        <small>Carregando</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stats-card-4">
+                    <div class="card-body text-center">
+                        <i class="fas fa-clipboard-check fa-2x mb-2"></i>
+                        <h4 id="completed-today">0</h4>
+                        <small>Finalizados Hoje</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Controles -->
+        <div class="row mb-3">
+            <div class="col-md-8">
+                <div class="btn-group" role="group">
+                    <button type="button" class="btn btn-outline-primary" id="refresh-queue">
+                        <i class="fas fa-sync-alt"></i> Atualizar
+                    </button>
+                    <button type="button" class="btn btn-outline-success" id="create-route-btn" data-role="manager">
+                        <i class="fas fa-plus"></i> Nova Rota
+                    </button>
+                    <button type="button" class="btn btn-outline-info" id="import-xml-btn" data-role="manager">
+                        <i class="fas fa-file-upload"></i> Importar XML
+                    </button>
+                    <button type="button" class="btn btn-outline-warning" id="reports-btn">
+                        <i class="fas fa-chart-bar"></i> Relatórios
+                    </button>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="input-group">
+                    <input type="text" class="form-control" id="search-queue" placeholder="Buscar por motorista, placa...">
+                    <button class="btn btn-outline-secondary" type="button">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Abas -->
+        <ul class="nav nav-tabs mb-3" id="loadingTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="queue-tab" data-bs-toggle="tab" data-bs-target="#queue" type="button" role="tab">
+                    <i class="fas fa-list"></i> Fila de Carregamento
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="routes-tab" data-bs-toggle="tab" data-bs-target="#routes" type="button" role="tab">
+                    <i class="fas fa-route"></i> Rotas
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="history-tab" data-bs-toggle="tab" data-bs-target="#history" type="button" role="tab">
+                    <i class="fas fa-history"></i> Histórico
+                </button>
+            </li>
+        </ul>
+        
+        <!-- Conteúdo das abas -->
+        <div class="tab-content" id="loadingTabContent">
+            <!-- Aba Fila -->
+            <div class="tab-pane fade show active" id="queue" role="tabpanel">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-truck"></i> Fila de Carregamento
+                            <span class="badge bg-primary ms-2" id="total-queue">0</span>
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="queue-container">
+                            <div class="text-center py-4">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Carregando...</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Aba Rotas -->
+            <div class="tab-pane fade" id="routes" role="tabpanel">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-route"></i> Gerenciamento de Rotas
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="routes-container">
+                            <div class="text-center text-muted py-4">
+                                Selecione esta aba para gerenciar rotas
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Aba Histórico -->
+            <div class="tab-pane fade" id="history" role="tabpanel">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-history"></i> Histórico de Carregamentos
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="history-container">
+                            <div class="text-center text-muted py-4">
+                                Selecione esta aba para ver o histórico
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal Criar Rota -->
+    <div class="modal fade" id="createRouteModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-plus"></i> Nova Rota
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="create-route-form">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="route-code" class="form-label">Código da Rota *</label>
+                            <input type="text" class="form-control" id="route-code" required>
+                            <div class="form-text">Ex: RT001, SP-RJ-001</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="route-description" class="form-label">Descrição</label>
+                            <textarea class="form-control" id="route-description" rows="2" 
+                                    placeholder="Descrição da rota (opcional)"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-save"></i> Criar Rota
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal Importar XML -->
+    <div class="modal fade" id="importXmlModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-file-upload"></i> Importar XML da Nota Fiscal
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="import-xml-form">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="route-select" class="form-label">Rota de Destino *</label>
+                            <select class="form-select" id="route-select" required>
+                                <option value="">Selecione uma rota...</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="xml-file" class="form-label">Arquivo XML *</label>
+                            <input type="file" class="form-control" id="xml-file" accept=".xml" required>
+                            <div class="form-text">Selecione o arquivo XML da nota fiscal</div>
+                        </div>
+                        <div class="mb-3" id="xml-preview" style="display:none;">
+                            <label class="form-label">Prévia do XML:</label>
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <div id="xml-info"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-upload"></i> Importar
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- WhatsApp Simulator (para testes) -->
+    <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1050;">
+        <div class="card" style="width: 300px; display: none;" id="whatsapp-simulator">
+            <div class="card-header bg-success text-white">
+                <h6 class="mb-0">
+                    <i class="fab fa-whatsapp"></i> Simulador WhatsApp
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="mb-2">
+                    <input type="text" class="form-control form-control-sm" 
+                           placeholder="CPF do motorista" id="sim-cpf">
+                </div>
+                <div class="mb-2">
+                    <input type="text" class="form-control form-control-sm" 
+                           placeholder="Nome do motorista" id="sim-name">
+                </div>
+                <div class="mb-2">
+                    <input type="text" class="form-control form-control-sm" 
+                           placeholder="Placa do veículo" id="sim-plate">
+                </div>
+                <div class="mb-2">
+                    <input type="text" class="form-control form-control-sm" 
+                           placeholder="ID da rota (1,2,3...)" id="sim-route">
+                </div>
+                <button class="btn btn-success btn-sm w-100" onclick="simulateWhatsAppRequest()">
+                    Solicitar Carregamento
+                </button>
+            </div>
+        </div>
+        <button class="btn btn-success rounded-circle" onclick="toggleWhatsAppSimulator()" 
+                title="Simulador WhatsApp">
+            <i class="fab fa-whatsapp"></i>
+        </button>
+    </div>
+    
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- APIs -->
+    <script src="js/api/carregamentos-api.js"></script>
+    
+    <!-- Módulo Principal de Carregamentos -->
+    <script>
+        // Sistema simplificado de carregamentos
+        class CarregamentosSimple {
+            constructor() {
+                this.queue = [];
+                this.stats = {
+                    aguardando: 0,
+                    em_rota: 0,
+                    entregue: 0,
+                    entregue_hoje: 0,
+                    volumes_em_armazem: 0
+                };
+                
+                console.log('🚛 Inicializando sistema de carregamentos...');
+                this.init();
+            }
+            
+            async init() {
+                try {
+                    // Aguardar CarregamentosAPI estar disponível
+                    await this.waitForAPI();
+                    
+                    // Carregar dados
+                    await this.loadData();
+                    
+                    // Configurar eventos
+                    this.setupEvents();
+                    
+                    console.log('✅ Sistema de carregamentos inicializado');
+                } catch (error) {
+                    console.error('❌ Erro ao inicializar:', error);
+                    this.loadLocalData();
+                }
+            }
+            
+            async waitForAPI() {
+                let attempts = 0;
+                const maxAttempts = 50;
+                
+                while (!window.CarregamentosAPI && attempts < maxAttempts) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    attempts++;
+                }
+                
+                if (!window.CarregamentosAPI) {
+                    throw new Error('CarregamentosAPI não disponível');
+                }
+            }
+            
+            async loadData() {
+                try {
+                    // Carregar fila
+                    this.queue = await window.CarregamentosAPI.getQueue();
+                    console.log(`📋 ${this.queue.length} itens na fila`);
+                    
+                    // Carregar estatísticas
+                    this.stats = await window.CarregamentosAPI.getStats();
+                    console.log('📊 Estatísticas carregadas:', this.stats);
+                    
+                    // Atualizar interface
+                    this.updateInterface();
+                    
+                } catch (error) {
+                    console.error('❌ Erro ao carregar dados:', error);
+                    this.loadLocalData();
+                }
+            }
+            
+            loadLocalData() {
+                console.log('💾 Carregando dados locais...');
+                
+                this.queue = [
+                    {
+                        id: 1,
+                        driver_name: 'João Silva',
+                        driver_cpf: '123.456.789-01',
+                        vehicle_plate: 'ABC1234',
+                        vehicle_type: 'Caminhão',
+                        route_code: 'SP-CENTRO',
+                        route_description: 'São Paulo Centro',
+                        status: 'waiting',
+                        requested_at: new Date().toISOString()
+                    },
+                    {
+                        id: 2,
+                        driver_name: 'Maria Santos',
+                        driver_cpf: '987.654.321-00',
+                        vehicle_plate: 'XYZ5678',
+                        vehicle_type: 'Van',
+                        route_code: 'SP-ZONA-SUL',
+                        route_description: 'São Paulo Zona Sul',
+                        status: 'approved',
+                        requested_at: new Date(Date.now() - 3600000).toISOString()
+                    }
+                ];
+                
+                this.stats = {
+                    aguardando: 1,
+                    em_rota: 1,
+                    entregue: 0,
+                    entregue_hoje: 0,
+                    volumes_em_armazem: 25
+                };
+                
+                this.updateInterface();
+            }
+            
+            updateInterface() {
+                // Atualizar estatísticas
+                document.getElementById('waiting-count').textContent = this.stats.aguardando || 0;
+                document.getElementById('approved-count').textContent = this.stats.em_rota || 0;
+                document.getElementById('loading-count').textContent = this.stats.volumes_em_armazem || 0;
+                document.getElementById('completed-today').textContent = this.stats.entregue_hoje || 0;
+                document.getElementById('total-queue').textContent = this.queue.length;
+                
+                // Atualizar fila
+                this.displayQueue();
+            }
+            
+            displayQueue() {
+                const container = document.getElementById('queue-container');
+                if (!container) return;
+                
+                if (this.queue.length === 0) {
+                    container.innerHTML = `
+                        <div class="text-center text-muted py-4">
+                            <i class="fas fa-inbox fa-3x mb-3"></i>
+                            <p>Nenhum item na fila de carregamento</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                const html = this.queue.map(item => this.renderQueueItem(item)).join('');
+                container.innerHTML = html;
+            }
+            
+            renderQueueItem(item) {
+                const statusClass = this.getStatusClass(item.status);
+                const statusText = this.getStatusText(item.status);
+                const timeAgo = this.timeAgo(item.requested_at || item.created_at);
+                
+                return `
+                    <div class="card mb-3 queue-item ${statusClass}" data-id="${item.id}">
+                        <div class="card-body">
+                            <div class="row align-items-center">
+                                <div class="col-md-3">
+                                    <h6 class="mb-1">
+                                        <i class="fas fa-user"></i> ${item.driver_name}
+                                    </h6>
+                                    <small class="text-muted">CPF: ${item.driver_cpf}</small>
+                                </div>
+                                <div class="col-md-2">
+                                    <strong>${item.vehicle_plate}</strong>
+                                    <br>
+                                    <small class="text-muted">${item.vehicle_type}</small>
+                                </div>
+                                <div class="col-md-2">
+                                    <i class="fas fa-route"></i> ${item.route_code}
+                                    <br>
+                                    <small class="text-muted">${item.route_description || 'Sem descrição'}</small>
+                                </div>
+                                <div class="col-md-2">
+                                    <span class="badge bg-${this.getStatusBadgeColor(item.status)}">
+                                        ${statusText}
+                                    </span>
+                                    <br>
+                                    <small class="text-muted">${timeAgo}</small>
+                                </div>
+                                <div class="col-md-3 text-end">
+                                    ${this.renderQueueActions(item)}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            renderQueueActions(item) {
+                const actions = [];
+                
+                switch (item.status) {
+                    case 'waiting':
+                        actions.push(`
+                            <button class="btn btn-sm btn-success me-1" onclick="carregamentos.updateStatus(${item.id}, 'approved')">
+                                <i class="fas fa-check"></i> Aprovar
+                            </button>
+                            <button class="btn btn-sm btn-danger" onclick="carregamentos.updateStatus(${item.id}, 'cancelled')">
+                                <i class="fas fa-times"></i> Cancelar
+                            </button>
+                        `);
+                        break;
+                        
+                    case 'approved':
+                        actions.push(`
+                            <button class="btn btn-sm btn-primary me-1" onclick="carregamentos.updateStatus(${item.id}, 'loading')">
+                                <i class="fas fa-truck-loading"></i> Iniciar
+                            </button>
+                            <button class="btn btn-sm btn-secondary" onclick="carregamentos.updateStatus(${item.id}, 'waiting')">
+                                <i class="fas fa-undo"></i> Voltar
+                            </button>
+                        `);
+                        break;
+                        
+                    case 'loading':
+                        actions.push(`
+                            <button class="btn btn-sm btn-success me-1" onclick="carregamentos.updateStatus(${item.id}, 'completed')">
+                                <i class="fas fa-check-circle"></i> Finalizar
+                            </button>
+                            <button class="btn btn-sm btn-secondary" onclick="carregamentos.updateStatus(${item.id}, 'approved')">
+                                <i class="fas fa-pause"></i> Pausar
+                            </button>
+                        `);
+                        break;
+                        
+                    default:
+                        actions.push(`
+                            <small class="text-muted">
+                                <i class="fas fa-check"></i> Finalizado
+                            </small>
+                        `);
+                        break;
+                }
+                
+                return actions.join('');
+            }
+            
+            async updateStatus(id, status) {
+                try {
+                    if (window.CarregamentosAPI) {
+                        await window.CarregamentosAPI.updateQueueStatus(id, status);
+                        await this.loadData(); // Recarregar dados
+                    } else {
+                        // Atualizar localmente
+                        const item = this.queue.find(q => q.id == id);
+                        if (item) {
+                            item.status = status;
+                            this.updateInterface();
+                        }
+                    }
+                    
+                    this.showAlert(`Status atualizado para: ${this.getStatusText(status)}`, 'success');
+                } catch (error) {
+                    console.error('Erro ao atualizar status:', error);
+                    this.showAlert('Erro ao atualizar status', 'danger');
+                }
+            }
+            
+            setupEvents() {
+                // Botão atualizar
+                const refreshBtn = document.getElementById('refresh-queue');
+                if (refreshBtn) {
+                    refreshBtn.addEventListener('click', () => this.loadData());
+                }
+            }
+            
+            // Utilitários
+            getStatusClass(status) {
+                const classes = {
+                    'waiting': 'status-waiting',
+                    'approved': 'status-approved',
+                    'loading': 'status-loading',
+                    'completed': 'status-completed',
+                    'cancelled': 'status-cancelled'
+                };
+                return classes[status] || '';
+            }
+            
+            getStatusText(status) {
+                const texts = {
+                    'waiting': 'Aguardando',
+                    'approved': 'Aprovado',
+                    'loading': 'Carregando',
+                    'completed': 'Finalizado',
+                    'cancelled': 'Cancelado'
+                };
+                return texts[status] || status;
+            }
+            
+            getStatusBadgeColor(status) {
+                const colors = {
+                    'waiting': 'warning',
+                    'approved': 'info',
+                    'loading': 'primary',
+                    'completed': 'success',
+                    'cancelled': 'danger'
+                };
+                return colors[status] || 'secondary';
+            }
+            
+            timeAgo(timestamp) {
+                const now = new Date();
+                const time = new Date(timestamp);
+                const diff = now - time;
+                const minutes = Math.floor(diff / 60000);
+                
+                if (minutes < 1) return 'Agora mesmo';
+                if (minutes < 60) return `${minutes}min atrás`;
+                
+                const hours = Math.floor(minutes / 60);
+                if (hours < 24) return `${hours}h atrás`;
+                
+                const days = Math.floor(hours / 24);
+                return `${days}d atrás`;
+            }
+            
+            showAlert(message, type = 'info') {
+                const container = document.getElementById('alert-container');
+                if (!container) return;
+                
+                const alertId = 'alert-' + Date.now();
+                const alert = document.createElement('div');
+                alert.id = alertId;
+                alert.className = `alert alert-${type} alert-dismissible fade show`;
+                alert.innerHTML = `
+                    ${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                `;
+                
+                container.appendChild(alert);
+                
+                // Auto-remover após 5 segundos
+                setTimeout(() => {
+                    const alertElement = document.getElementById(alertId);
+                    if (alertElement) {
+                        alertElement.remove();
+                    }
+                }, 5000);
+            }
+        }
+        
+        // Funções globais para o simulador WhatsApp
+        function toggleWhatsAppSimulator() {
+            const simulator = document.getElementById('whatsapp-simulator');
+            simulator.style.display = simulator.style.display === 'none' ? 'block' : 'none';
+        }
+        
+        async function simulateWhatsAppRequest() {
+            const cpf = document.getElementById('sim-cpf').value;
+            const name = document.getElementById('sim-name').value;
+            const plate = document.getElementById('sim-plate').value;
+            const route = document.getElementById('sim-route').value;
+            
+            if (!cpf || !name || !plate || !route) {
+                alert('Preencha todos os campos');
+                return;
+            }
+            
+            try {
+                if (window.CarregamentosAPI) {
+                    const result = await window.CarregamentosAPI.addToQueue({
+                        driver_cpf: cpf,
+                        driver_name: name,
+                        vehicle_plate: plate,
+                        vehicle_type: 'Caminhão',
+                        phone_number: '11999999999',
+                        route_code: route
+                    });
+                    
+                    alert(`Solicitação enviada! Posição na fila: ${result.position || 1}`);
+                    
+                    // Limpar campos
+                    document.getElementById('sim-cpf').value = '';
+                    document.getElementById('sim-name').value = '';
+                    document.getElementById('sim-plate').value = '';
+                    document.getElementById('sim-route').value = '';
+                    
+                    // Recarregar dados
+                    if (window.carregamentos) {
+                        window.carregamentos.loadData();
+                    }
+                } else {
+                    alert('API não disponível - usando simulação local');
+                }
+            } catch (error) {
+                alert('Erro: ' + error.message);
+                console.error(error);
+            }
+        }
+        
+        // Inicializar quando a página carregar
+        document.addEventListener('DOMContentLoaded', () => {
+            window.carregamentos = new CarregamentosSimple();
+        });
+    </script>
+</body>
+</html>

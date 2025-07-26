@@ -1,0 +1,142 @@
+<div class="dashboard-page">
+  <!-- Cards de estatísticas -->
+  <div class="row mb-4">
+    <div class="col-md-6 col-lg-3 mb-3">
+      <div class="card stat-card bg-light-subtle">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="card-title text-muted">Carregamentos Hoje</h6>
+              <h2 class="card-text fw-bold" id="total-loadings">0</h2>
+            </div>
+            <div class="bg-primary bg-opacity-10 p-3 rounded">
+              <i class="fas fa-truck-loading text-primary fa-2x"></i>
+            </div>
+          </div>
+          <div class="mt-3">
+            <span class="badge bg-success me-1" id="completed-loadings">0</span> Concluídos
+            <span class="badge bg-warning mx-1" id="in-progress-loadings">0</span> Em Andamento
+            <span class="badge bg-info ms-1" id="scheduled-loadings">0</span> Agendados
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-md-6 col-lg-3 mb-3">
+      <div class="card stat-card bg-light-subtle">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="card-title text-muted">Docas</h6>
+              <h2 class="card-text fw-bold" id="total-docks">0</h2>
+            </div>
+            <div class="bg-success bg-opacity-10 p-3 rounded">
+              <i class="fas fa-warehouse text-success fa-2x"></i>
+            </div>
+          </div>
+          <div class="mt-3">
+            <span class="badge bg-success me-1" id="available-docks">0</span> Disponíveis
+            <span class="badge bg-warning ms-1" id="occupied-docks">0</span> Ocupadas
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-md-6 col-lg-3 mb-3">
+      <div class="card stat-card bg-light-subtle">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="card-title text-muted">Taxa de Ocupação</h6>
+              <h2 class="card-text fw-bold" id="occupancy-rate">0%</h2>
+            </div>
+            <div class="bg-warning bg-opacity-10 p-3 rounded">
+              <i class="fas fa-chart-pie text-warning fa-2x"></i>
+            </div>
+          </div>
+          <div class="mt-3">
+            <div class="progress">
+              <div class="progress-bar bg-warning" role="progressbar" style="width: 0%" id="occupancy-bar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-md-6 col-lg-3 mb-3">
+      <div class="card stat-card bg-light-subtle">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="card-title text-muted">Eficiência</h6>
+              <h2 class="card-text fw-bold" id="loading-efficiency">0%</h2>
+            </div>
+            <div class="bg-info bg-opacity-10 p-3 rounded">
+              <i class="fas fa-chart-line text-info fa-2x"></i>
+            </div>
+          </div>
+          <div class="mt-3">
+            <div class="progress">
+              <div class="progress-bar bg-info" role="progressbar" style="width: 0%" id="efficiency-bar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Status das Docas -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="card shadow-sm">
+        <div class="card-header bg-light">
+          <div class="d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Status das Docas</h5>
+            <button class="btn btn-sm btn-primary" data-page="docks">
+              <i class="fas fa-warehouse me-1"></i> Gerenciar Docas
+            </button>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="row" id="active-docks">
+            <div class="text-center py-5">
+              <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Carregando...</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Carregamentos do Dia -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="card shadow-sm">
+        <div class="card-header bg-light">
+          <div class="d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Carregamentos de Hoje</h5>
+            <div>
+              <button class="btn btn-sm btn-success me-2" data-bs-toggle="modal" data-bs-target="#newLoadingModal">
+                <i class="fas fa-plus me-1"></i> Novo Carregamento
+              </button>
+              <button class="btn btn-sm btn-primary" data-page="loadings">
+                <i class="fas fa-list me-1"></i> Ver Todos
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="card-body">
+          <div id="today-loadings">
+            <div class="text-center py-5">
+              <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Carregando...</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

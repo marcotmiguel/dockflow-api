@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DockFlow - Dashboard</title>
+  
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  
+  <!-- Font Awesome para ícones -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- CSS personalizado -->
+  <link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body>
+  <div id="dashboard-container" class="container-fluid">
+    <div class="row">
+      <!-- Sidebar / Menu Lateral -->
+      <div class="col-md-3 col-lg-2 d-md-block sidebar collapse">
+        <div class="text-center mb-4">
+          <h3 class="h5 fw-bold text-white mt-3">DockFlow</h3>
+          <p class="text-white-50 small">Sistema de Gestão</p>
+        </div>
+        
+        <ul class="nav flex-column">
+          <li class="nav-item">
+            <a class="nav-link active" data-page="dashboard" href="#">
+              <i class="fas fa-tachometer-alt"></i> Dashboard
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" data-page="loadings" href="#">
+              <i class="fas fa-truck-loading"></i> Carregamentos
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" data-page="docks" href="#">
+              <i class="fas fa-warehouse"></i> Docas
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" data-page="products" href="#">
+              <i class="fas fa-box"></i> Produtos
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" data-page="drivers" href="#">
+              <i class="fas fa-id-card"></i> Motoristas
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" data-page="vehicles" href="#">
+              <i class="fas fa-truck"></i> Veículos
+            </a>
+          </li>
+          <li class="nav-item" data-role="admin">
+            <a class="nav-link" data-page="users" href="#">
+              <i class="fas fa-users"></i> Usuários
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" data-page="reports" href="#">
+              <i class="fas fa-chart-bar"></i> Relatórios
+            </a>
+          </li>
+        </ul>
+        
+        <hr class="text-white-50">
+        
+        <div class="px-3 mb-3">
+          <a href="#" id="logout-button" class="btn btn-outline-light btn-sm w-100">
+            <i class="fas fa-sign-out-alt"></i> Sair
+          </a>
+        </div>
+      </div>
+      
+      <!-- Conteúdo Principal -->
+      <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 py-4">
+        <!-- Cabeçalho -->
+        <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+          <h1 class="h2" id="page-title">Dashboard</h1>
+          <div class="btn-toolbar mb-2 mb-md-0">
+            <div class="dropdown">
+              <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="fas fa-user-circle me-1"></i>
+                <span id="user-name">Usuário</span>
+              </button>
+              <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+                <li><a class="dropdown-item" href="#"><i class="fas fa-user me-1"></i> Perfil</a></li>
+                <li><a class="dropdown-item" href="#"><i class="fas fa-cog me-1"></i> Configurações</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" href="#" id="dropdown-logout-button"><i class="fas fa-sign-out-alt me-1"></i> Sair</a></li>
+              </ul>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Conteúdo da página (carregado dinamicamente) -->
+        <div id="content-container">
+          <!-- O conteúdo será carregado dinamicamente via JavaScript -->
+        </div>
+      </main>
+    </div>
+  </div>
+  
+  <!-- Modal para Novo Carregamento -->
+  <div class="modal fade" id="newLoadingModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Novo Carregamento</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+        </div>
+        <div class="modal-body">
+          <form id="new-loading-form">
+            <div class="row mb-3">
+              <div class="col-md-6">
+                <label for="scheduled-date" class="form-label">Data</label>
+                <input type="date" class="form-control" id="scheduled-date" required>
+              </div>
+              <div class="col-md-6">
+                <label for="scheduled-time" class="form-label">Horário</label>
+                <input type="time" class="form-control" id="scheduled-time" required>
+              </div>
+            </div>
+            
+            <div class="mb-3">
+              <label class="form-label">Motorista</label>
+              <div class="mb-2">
+                <div class="form-check form-check-inline">
+                  <input class="form-check-input" type="radio" name="driver-option" id="existing-driver" value="existing" checked>
+                  <label class="form-check-label" for="existing-driver">Motorista Existente</label>
+                </div>
+                <div class="form-check form-check-inline">
+                  <input class="form-check-input" type="radio" name="driver-option" id="new-driver" value="new">
+                  <label class="form-check-label" for="new-driver">Novo Motorista</label>
+                </div>
+              </div>
+              
+              <div id="existing-driver-container">
+                <select class="form-select" id="driver-select">
+                  <option value="">Selecione o motorista...</option>
+                  <!-- Será preenchido via JavaScript -->
+                </select>
+              </div>
+              
+              <div id="new-driver-container" class="d-none">
+                <div class="row">
+                  <div class="col-md-6 mb-2">
+                    <input type="text" class="form-control" id="driver-name" placeholder="Nome do Motorista">
+                  </div>
+                  <div class="col-md-6 mb-2">
+                    <input type="tel" class="form-control" id="driver-phone" placeholder="Telefone (WhatsApp)">
+                  </div>
+                </div>
+                <div class="row">
+                  <div class="col-md-6 mb-2">
+                    <input type="text" class="form-control" id="license-plate" placeholder="Placa do Veículo">
+                  </div>
+                  <div class="col-md-6 mb-2">
+                    <input type="text" class="form-control" id="vehicle-type" placeholder="Tipo de Veículo">
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="mb-3">
+              <label class="form-label">Produtos</label>
+              <div class="table-responsive">
+                <table class="table table-sm table-hover" id="products-table">
+                  <thead>
+                    <tr>
+                      <th>Produto</th>
+                      <th width="100">Quantidade</th>
+                      <th width="50"></th>
+                    </tr>
+                  </thead>
+                  <tbody id="products-tbody">
+                    <tr>
+                      <td>
+                        <select class="form-select product-select">
+                          <option value="">Selecione o produto...</option>
+                          <!-- Será preenchido via JavaScript -->
+                        </select>
+                      </td>
+                      <td>
+                        <input type="number" class="form-control product-quantity" min="1" value="1">
+                      </td>
+                      <td>
+                        <button type="button" class="btn btn-sm btn-outline-danger remove-product">
+                          <i class="fas fa-times"></i>
+                        </button>
+                      </td>
+                    </tr>
+                  </tbody>
+                  <tfoot>
+                    <tr>
+                      <td colspan="3">
+                        <button type="button" class="btn btn-sm btn-outline-primary" id="add-product-row">
+                          <i class="fas fa-plus me-1"></i> Adicionar Produto
+                        </button>
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+            
+            <div class="mb-3">
+              <label for="loading-notes" class="form-label">Observações</label>
+              <textarea class="form-control" id="loading-notes" rows="2"></textarea>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-primary" id="save-loading-btn">
+            <span class="spinner-border spinner-border-sm d-none" id="save-loading-spinner"></span>
+            <span id="save-loading-text">Salvar Carregamento</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  
+  <!-- Scripts JS - Ordem Importante -->
+  <script src="../js/auth.js"></script>
+  <script src="../js/modules/utils.js"></script>
+  <script src="../js/modules/dashboard.js"></script>
+  <script src="../js/modules/drivers.js"></script>
+  <script src="../js/modules/vehicles.js"></script>
+  <script src="../js/main.js"></script>
+  <script src="../js/modules/docks.js"></script>
+  <script src="../js/modules/users.js"></script>
+  
+  <!-- Script para remover títulos duplicados -->
+  <script>
+    // Função para remover títulos "Dashboard" duplicados
+    function removeDuplicateTitles() {
+      // Encontrar todos os elementos h1 com id="page-title"
+      const titles = document.querySelectorAll('h1#page-title');
+      
+      // Se houver mais de um, remover os extras
+      if (titles.length > 1) {
+        // Manter apenas o primeiro
+        for (let i = 1; i < titles.length; i++) {
+          titles[i].remove();
+        }
+      }
+    }
+    
+    // Executar quando o DOM estiver carregado
+    document.addEventListener('DOMContentLoaded', removeDuplicateTitles);
+    
+    // Também executar quando o conteúdo for atualizado
+    const observer = new MutationObserver(function(mutations) {
+      mutations.forEach(function(mutation) {
+        if (mutation.type === 'childList') {
+          removeDuplicateTitles();
+        }
+      });
+    });
+    
+    // Observar mudanças no container de conteúdo
+    const contentContainer = document.getElementById('content-container');
+    if (contentContainer) {
+      observer.observe(contentContainer, { childList: true, subtree: true });
+    }
+  </script>
+
+</body>
+</html>

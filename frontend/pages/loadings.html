@@ -1,0 +1,654 @@
+<!-- PÁGINA COMPLETA DE CARREGAMENTOS -->
+<div class="content-page">
+  <!-- Container de alertas -->
+  <div id="alert-container"></div>
+  
+  <!-- Cabeçalho da página -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h4 class="mb-1">Gerenciamento de Carregamentos</h4>
+      <p class="text-muted mb-0">Controle a fila de carregamentos e operações das docas</p>
+    </div>
+    <div class="btn-group" role="group">
+      <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#createRouteModal" data-role="manager">
+        <i class="fas fa-plus me-2"></i>
+        Nova Rota
+      </button>
+      <button class="btn btn-info" onclick="LoadingsXML.showXmlTab()" data-role="manager">
+        <i class="fas fa-file-upload me-2"></i>
+        Importar XML
+      </button>
+    </div>
+  </div>
+
+  <!-- Header com estatísticas -->
+  <div class="row mb-4">
+    <div class="col-md-3">
+      <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+        <div class="card-body text-center">
+          <i class="fas fa-clock fa-2x mb-2"></i>
+          <h4 id="waiting-count">0</h4>
+          <small>Aguardando</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white;">
+        <div class="card-body text-center">
+          <i class="fas fa-check-circle fa-2x mb-2"></i>
+          <h4 id="approved-count">0</h4>
+          <small>Aprovados</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white;">
+        <div class="card-body text-center">
+          <i class="fas fa-truck-loading fa-2x mb-2"></i>
+          <h4 id="loading-count">0</h4>
+          <small>Carregando</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); color: white;">
+        <div class="card-body text-center">
+          <i class="fas fa-clipboard-check fa-2x mb-2"></i>
+          <h4 id="completed-today">0</h4>
+          <small>Finalizados Hoje</small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filtros e busca -->
+  <div class="card mb-4">
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-6">
+          <div class="input-group">
+            <span class="input-group-text">
+              <i class="fas fa-search"></i>
+            </span>
+            <input type="text" class="form-control" id="loading-search" placeholder="Buscar por motorista, placa ou rota...">
+          </div>
+        </div>
+        <div class="col-md-3">
+          <select class="form-select" id="status-filter">
+            <option value="">Todos os status</option>
+            <option value="waiting">Aguardando</option>
+            <option value="approved">Aprovado</option>
+            <option value="loading">Carregando</option>
+            <option value="completed">Concluído</option>
+            <option value="cancelled">Cancelado</option>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <button class="btn btn-outline-secondary w-100" id="refresh-loadings">
+            <i class="fas fa-sync-alt me-1"></i>
+            Atualizar
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Abas principais -->
+  <ul class="nav nav-tabs mb-3" id="loadingTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+      <button class="nav-link active" id="queue-tab" data-bs-toggle="tab" data-bs-target="#queue" type="button" role="tab">
+        <i class="fas fa-list"></i> Fila de Carregamento
+        <span class="badge bg-primary ms-2" id="total-queue">0</span>
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="routes-tab" data-bs-toggle="tab" data-bs-target="#routes" type="button" role="tab">
+        <i class="fas fa-route"></i> Rotas Ativas
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="history-tab" data-bs-toggle="tab" data-bs-target="#history" type="button" role="tab">
+        <i class="fas fa-history"></i> Histórico
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="xml-import-tab" data-bs-toggle="tab" data-bs-target="#xml-import" type="button" role="tab">
+        <i class="fas fa-file-upload"></i> Importar XML
+      </button>
+    </li>
+  </ul>
+
+  <!-- Conteúdo das abas -->
+  <div class="tab-content" id="loadingTabContent">
+    <!-- Aba Fila de Carregamento -->
+    <div class="tab-pane fade show active" id="queue" role="tabpanel">
+      <div class="card">
+        <div class="card-header">
+          <h5 class="mb-0">
+            <i class="fas fa-truck"></i> Fila de Carregamento
+          </h5>
+        </div>
+        <div class="card-body">
+          <div id="queue-container">
+            <div class="text-center py-5">
+              <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Carregando...</span>
+              </div>
+              <p class="text-muted mt-2 mb-0">Carregando fila de carregamentos...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Aba Rotas -->
+    <div class="tab-pane fade" id="routes" role="tabpanel">
+      <div class="card">
+        <div class="card-header">
+          <h5 class="mb-0">
+            <i class="fas fa-route"></i> Gerenciamento de Rotas
+          </h5>
+        </div>
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-hover">
+              <thead>
+                <tr>
+                  <th>Código</th>
+                  <th>Descrição</th>
+                  <th>Carregamentos</th>
+                  <th>Status</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody id="routes-list">
+                <tr>
+                  <td colspan="5" class="text-center py-4 text-muted">
+                    Carregando rotas...
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Aba Histórico -->
+    <div class="tab-pane fade" id="history" role="tabpanel">
+      <div class="card">
+        <div class="card-header">
+          <div class="d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">
+              <i class="fas fa-history"></i> Histórico de Carregamentos
+            </h5>
+            <button class="btn btn-outline-success btn-sm" id="export-history">
+              <i class="fas fa-download me-1"></i>
+              Exportar
+            </button>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-hover">
+              <thead>
+                <tr>
+                  <th>Data</th>
+                  <th>Motorista</th>
+                  <th>Veículo</th>
+                  <th>Rota</th>
+                  <th>Doca</th>
+                  <th>Status</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody id="history-list">
+                <tr>
+                  <td colspan="7" class="text-center py-4 text-muted">
+                    Carregando histórico...
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Aba XML Import -->
+    <div class="tab-pane fade" id="xml-import" role="tabpanel">
+      <div class="card">
+        <div class="card-header bg-success text-white">
+          <h5 class="mb-0">
+            <i class="fas fa-file-upload"></i> Importação XML de Notas Fiscais
+          </h5>
+          <small>Sistema inteligente de processamento automático - MÚLTIPLOS ARQUIVOS</small>
+        </div>
+        <div class="card-body">
+          
+          <!-- Seção de Upload -->
+          <div class="upload-section mb-4" id="xml-upload-section">
+            <div class="row">
+              <div class="col-md-8 mx-auto">
+                <div class="card bg-light border-2 border-dashed upload-zone" style="border-color: #3498db !important;">
+                  <div class="card-body text-center py-5">
+                    <div class="mb-3">
+                      <i class="fas fa-cloud-upload-alt fa-3x text-primary"></i>
+                    </div>
+                    <h5 class="card-title">Importar Múltiplos Arquivos XML</h5>
+                    <p class="card-text text-muted">Arraste múltiplos XMLs aqui ou clique para selecionar vários arquivos</p>
+                    <!-- CORREÇÃO PRINCIPAL: Adicionado multiple="true" -->
+                    <input type="file" id="xml-file-input" accept=".xml" multiple="true" style="display: none;">
+                    <button class="btn btn-primary" onclick="document.getElementById('xml-file-input').click()">
+                      <i class="fas fa-folder-open me-2"></i>
+                      Selecionar Múltiplos XMLs
+                    </button>
+                    <div class="mt-2">
+                      <small class="text-muted">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Formatos aceitos: .xml | Máximo: 10MB por arquivo | Múltiplos arquivos suportados
+                      </small>
+                    </div>
+                    <div class="mt-2">
+                      <span class="badge bg-success">
+                        <i class="fas fa-robot me-1"></i>
+                        Sistema de Roteirização Automática Ativo
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Processamento -->
+          <div class="processing-section" id="xml-processing" style="display: none;">
+            <div class="text-center py-4">
+              <div class="spinner-border text-primary mb-3" role="status">
+                <span class="visually-hidden">Processando...</span>
+              </div>
+              <h5 class="text-primary">🤖 Processando XMLs Automaticamente</h5>
+              <p class="text-muted">Extraindo dados inteligentemente e enviando para roteirização</p>
+              <div class="progress" style="height: 10px;">
+                <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%" id="xml-progress-bar"></div>
+              </div>
+              <div class="mt-2">
+                <small class="text-muted" id="xml-progress-text">Iniciando processamento...</small>
+              </div>
+            </div>
+          </div>
+
+          <!-- Resultados da Análise -->
+          <div class="results-section" id="xml-results" style="display: none;">
+            <!-- Dados Extraídos -->
+            <div class="row mb-4">
+              <div class="col-md-4">
+                <div class="card border-primary">
+                  <div class="card-header bg-primary text-white">
+                    <h6 class="mb-0"><i class="fas fa-file-invoice"></i> Dados da Nota Fiscal</h6>
+                  </div>
+                  <div class="card-body" id="nf-info">
+                    <!-- Será preenchido dinamicamente -->
+                  </div>
+                </div>
+              </div>
+              
+              <div class="col-md-4">
+                <div class="card border-success">
+                  <div class="card-header bg-success text-white">
+                    <h6 class="mb-0"><i class="fas fa-map-marker-alt"></i> Endereço de Entrega</h6>
+                  </div>
+                  <div class="card-body" id="delivery-info">
+                    <!-- Será preenchido dinamicamente -->
+                  </div>
+                </div>
+              </div>
+              
+              <div class="col-md-4">
+                <div class="card border-warning">
+                  <div class="card-header bg-warning text-white">
+                    <h6 class="mb-0"><i class="fas fa-clock"></i> Agendamento</h6>
+                  </div>
+                  <div class="card-body" id="schedule-info">
+                    <!-- Será preenchido dinamicamente -->
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Produtos -->
+            <div class="card mb-4">
+              <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-boxes"></i> Produtos da Nota Fiscal</h6>
+              </div>
+              <div class="card-body">
+                <div class="table-responsive">
+                  <table class="table table-sm">
+                    <thead>
+                      <tr>
+                        <th>Código</th>
+                        <th>Descrição</th>
+                        <th>Quantidade</th>
+                        <th>Unidade</th>
+                        <th>Valor Unit.</th>
+                        <th>Valor Total</th>
+                      </tr>
+                    </thead>
+                    <tbody id="xml-products-list">
+                      <!-- Será preenchido dinamicamente -->
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <!-- Seleção de Rota -->
+            <div class="card mb-4">
+              <div class="card-header bg-info text-white">
+                <h6 class="mb-0"><i class="fas fa-route"></i> Associar à Rota</h6>
+              </div>
+              <div class="card-body">
+                <div class="row">
+                  <div class="col-md-6">
+                    <div class="form-check mb-3">
+                      <input class="form-check-input" type="radio" name="routeOption" id="useExistingRoute" value="existing">
+                      <label class="form-check-label" for="useExistingRoute">
+                        <i class="fas fa-list me-1"></i> Usar rota existente
+                      </label>
+                    </div>
+                    <div id="existing-route-section" style="display: none;">
+                      <select class="form-select" id="existing-route-select">
+                        <option value="">Selecione uma rota...</option>
+                      </select>
+                    </div>
+                  </div>
+                  
+                  <div class="col-md-6">
+                    <div class="form-check mb-3">
+                      <input class="form-check-input" type="radio" name="routeOption" id="createNewRoute" value="new" checked>
+                      <label class="form-check-label" for="createNewRoute">
+                        <i class="fas fa-plus me-1"></i> Criar nova rota
+                      </label>
+                    </div>
+                    <div id="new-route-section">
+                      <div class="mb-3">
+                        <label for="new-route-name" class="form-label">Nome da Rota</label>
+                        <input type="text" class="form-control" id="new-route-name" placeholder="Ex: Entrega SODEXO - 20/07/2025">
+                      </div>
+                      <div class="mb-3">
+                        <label for="new-route-destination" class="form-label">Endereço de Destino</label>
+                        <textarea class="form-control" id="new-route-destination" rows="2" placeholder="Endereço completo extraído do XML"></textarea>
+                      </div>
+                      <div class="row">
+                        <div class="col-md-6">
+                          <label for="new-route-date" class="form-label">Data Prevista</label>
+                          <input type="date" class="form-control" id="new-route-date">
+                        </div>
+                        <div class="col-md-6">
+                          <label for="new-route-time" class="form-label">Horário (se especificado)</label>
+                          <input type="text" class="form-control" id="new-route-time" placeholder="Ex: 08:00 às 17:00">
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Botões de Ação -->
+            <div class="text-center">
+              <button class="btn btn-success btn-lg me-2" id="import-xml-final-btn">
+                <i class="fas fa-check me-2"></i>
+                Importar e Criar Carregamento
+              </button>
+              <button class="btn btn-secondary" onclick="LoadingsXML.resetXmlImport()">
+                <i class="fas fa-redo me-2"></i>
+                Processar Novos XMLs
+              </button>
+            </div>
+          </div>
+
+          <!-- Log de atividades -->
+          <div class="card mt-4">
+            <div class="card-header">
+              <h6 class="mb-0">📋 Log de Atividades</h6>
+            </div>
+            <div class="card-body">
+              <div id="xml-log" style="height: 200px; overflow-y: auto; background: #f8f9fa; padding: 15px; border-radius: 5px; font-family: monospace;">
+                <div class="text-success">[${new Date().toLocaleTimeString()}] ✅ Sistema XML operacional</div>
+                <div class="text-info">[${new Date().toLocaleTimeString()}] 📋 Pronto para receber múltiplos arquivos XML</div>
+                <div class="text-warning">[${new Date().toLocaleTimeString()}] 🤖 Sistema de roteirização automática ativo</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL PARA CRIAR NOVA ROTA -->
+<div class="modal fade" id="createRouteModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Nova Rota</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+      <div class="modal-body">
+        <form id="create-route-form">
+          <div class="mb-3">
+            <label for="route-code" class="form-label">Código da Rota *</label>
+            <input type="text" class="form-control" id="route-code" placeholder="Ex: RT001, SP-RJ-001" required>
+            <div class="form-text">Código único para identificar a rota.</div>
+          </div>
+          
+          <div class="mb-3">
+            <label for="route-description" class="form-label">Descrição</label>
+            <textarea class="form-control" id="route-description" rows="3" placeholder="Descrição da rota (opcional)"></textarea>
+          </div>
+          
+          <div class="mb-3">
+            <label for="route-priority" class="form-label">Prioridade</label>
+            <select class="form-select" id="route-priority">
+              <option value="normal">Normal</option>
+              <option value="high">Alta</option>
+              <option value="urgent">Urgente</option>
+            </select>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-success" id="save-route-btn">
+          <span class="spinner-border spinner-border-sm d-none" id="save-route-spinner"></span>
+          <span id="save-route-text">Criar Rota</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL PARA GERENCIAR CARREGAMENTO -->
+<div class="modal fade" id="manageLoadingModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Gerenciar Carregamento</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row">
+          <div class="col-md-4">
+            <div class="card">
+              <div class="card-header">
+                <h6 class="mb-0">Informações do Carregamento</h6>
+              </div>
+              <div class="card-body">
+                <div id="loading-info">
+                  <!-- Será preenchido dinamicamente -->
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="col-md-8">
+            <div class="card">
+              <div class="card-header">
+                <h6 class="mb-0">Sistema de Bipagem</h6>
+              </div>
+              <div class="card-body">
+                <div class="mb-3">
+                  <label for="barcode-input" class="form-label">Código de Barras</label>
+                  <input type="text" class="form-control" id="barcode-input" 
+                         placeholder="Escaneie ou digite o código" 
+                         style="font-family: 'Courier New', monospace; font-size: 1.1em;">
+                  <div class="form-text">Foque neste campo e use o leitor de código de barras</div>
+                </div>
+                
+                <div class="scan-history" style="max-height: 300px; overflow-y: auto;" id="scan-history">
+                  <!-- Histórico de bipagem será adicionado aqui -->
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+        <button type="button" class="btn btn-warning" id="pause-loading-btn">
+          <i class="fas fa-pause me-1"></i> Pausar
+        </button>
+        <button type="button" class="btn btn-success" id="complete-loading-btn">
+          <i class="fas fa-check me-1"></i> Finalizar Carregamento
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- WhatsApp Simulator (para testes) -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1050;">
+  <div class="card" style="width: 300px; display: none;" id="whatsapp-simulator">
+    <div class="card-header bg-success text-white">
+      <h6 class="mb-0">
+        <i class="fab fa-whatsapp"></i> Simulador WhatsApp
+      </h6>
+    </div>
+    <div class="card-body">
+      <div class="mb-2">
+        <input type="text" class="form-control form-control-sm" 
+               placeholder="CPF do motorista" id="sim-cpf">
+      </div>
+      <div class="mb-2">
+        <input type="text" class="form-control form-control-sm" 
+               placeholder="Nome do motorista" id="sim-name">
+      </div>
+      <div class="mb-2">
+        <input type="text" class="form-control form-control-sm" 
+               placeholder="Placa do veículo" id="sim-plate">
+      </div>
+      <div class="mb-2">
+        <input type="text" class="form-control form-control-sm" 
+               placeholder="Código da rota" id="sim-route">
+      </div>
+      <button class="btn btn-success btn-sm w-100" id="simulate-request-btn">
+        Solicitar Carregamento
+      </button>
+    </div>
+  </div>
+  <button class="btn btn-success rounded-circle" id="toggle-whatsapp-simulator" 
+          title="Simulador WhatsApp">
+    <i class="fab fa-whatsapp"></i>
+  </button>
+</div>
+
+<!-- CSS personalizado -->
+<style>
+.queue-item {
+  transition: all 0.3s ease;
+  border-left: 4px solid #dee2e6;
+}
+
+.queue-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.status-waiting { border-left-color: #ffc107; }
+.status-approved { border-left-color: #17a2b8; }
+.status-loading { 
+  border-left-color: #007bff;
+  animation: pulse 2s infinite;
+}
+.status-completed { border-left-color: #28a745; }
+.status-cancelled { border-left-color: #dc3545; }
+
+@keyframes pulse {
+  0% { border-left-color: #007bff; }
+  50% { border-left-color: #0056b3; }
+  100% { border-left-color: #007bff; }
+}
+
+.scan-item {
+  border-left: 3px solid #28a745;
+  animation: fadeIn 0.5s ease-in;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.barcode-input {
+  font-family: 'Courier New', monospace;
+  font-size: 1.1em;
+}
+
+/* Estilos para Upload XML */
+.upload-zone {
+  border: 3px dashed #3498db;
+  border-radius: 15px;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  background: #f8f9ff;
+}
+
+.upload-zone:hover {
+  border-color: #2980b9;
+  background: #e8f0ff;
+  transform: translateY(-2px);
+}
+
+.upload-zone.dragover {
+  border-color: #27ae60;
+  background: #e8f5e8;
+}
+
+.info-item {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 0.95rem;
+}
+
+.info-label {
+  font-weight: 600;
+  color: #34495e;
+}
+
+.info-value {
+  color: #2c3e50;
+  text-align: right;
+  max-width: 60%;
+  word-break: break-word;
+}
+
+.highlight {
+  background: #fff3cd;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-weight: 600;
+}
+</style>
