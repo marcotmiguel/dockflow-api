@@ -1,1 +1,1 @@
-"console.log('App.js carregado');" 
+"console.log('DockFlow carregado');" 
