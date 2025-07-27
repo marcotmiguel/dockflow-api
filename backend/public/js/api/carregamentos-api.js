@@ -3,12 +3,13 @@
 
 class CarregamentosAPI {
   constructor() {
-    this.baseURL = 'http://localhost:8080';
+    this.baseURL = window.API_URL ? window.API_URL.replace('/api', '') : 'http://localhost:3000';
     this.apiPrefix = '/api/carregamentos';
     this.timeout = 10000;
     
     this.isOnline = navigator.onLine;
     console.log('🚛 Inicializando API de Carregamentos...');
+     console.log('📡 Base URL:', this.baseURL);
     this.checkAPIAvailability();
   }
 
