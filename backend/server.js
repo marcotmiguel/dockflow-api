@@ -22,6 +22,8 @@ const NODE_ENV = process.env.NODE_ENV || 'development';
 // 🚀 Inicialização do app
 const app = express();
 
+app.set('trust proxy', true);
+
 // 🗃️ Configuração de CORS segura + Railway fix
 const corsOptions = {
   origin: function (origin, callback) {
