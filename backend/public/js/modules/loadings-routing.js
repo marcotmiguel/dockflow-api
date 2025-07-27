@@ -67,30 +67,64 @@ const LoadingsRouting = {
   extractDestination: function(xmlData) {
     console.log('📍 Extraindo destino do XML...');
     
-    // 🎯 PRIMEIRO: Tentar extrair endereço de entrega real do infAdFisco
-    let deliveryAddress = null;
+    // 🎯 PRIMEIRO: Verificar se já existe endereço de entrega processado
+    if (xmlData.enderecoEntrega && xmlData.enderecoEntrega.encontrado && xmlData.enderecoEntrega.endereco) {
+      console.log('✅ Endereço de entrega já processado encontrado:', xmlData.enderecoEntrega.endereco);
+      
+      // Usar endereço já processado
+      const addressText = xmlData.enderecoEntrega.endereco;
+      const result = this.parseDeliveryAddress(addressText);
+      
+      if (result.city !== 'Não definida') {
+        console.log('✅ Endereço de entrega processado com sucesso:', result);
+        return result;
+      }
+    }
     
-    if (xmlData.informacoesAdicionais && xmlData.informacoesAdicionais.infAdFisco) {
-      deliveryAddress = this.extractDeliveryAddressFromInfo(xmlData.informacoesAdicionais.infAdFisco);
-      if (deliveryAddress) {
-        console.log('✅ Endereço de entrega encontrado em infAdFisco:', deliveryAddress);
+    // 🔍 SEGUNDO: Tentar extrair das observações diretamente
+    if (xmlData.observacoes && typeof xmlData.observacoes === 'string') {
+      console.log('🔍 Tentando extrair das observações...');
+      const deliveryAddress = this.extractDeliveryAddressFromInfo(xmlData.observacoes);
+      if (deliveryAddress && deliveryAddress.city !== 'Não definida') {
+        console.log('✅ Endereço extraído das observações:', deliveryAddress);
         return deliveryAddress;
       }
     }
     
-    // 🔄 FALLBACK: Usar endereço de faturamento (enderDest)
-    console.log('⚠️ Endereço de entrega não encontrado, usando endereço de faturamento');
-    const endereco = xmlData.enderecoEntrega || xmlData.endereco;
+    // 🔄 FALLBACK: Usar endereço estruturado (endereco)
+    console.log('⚠️ Usando endereço estruturado como fallback');
+    const endereco = xmlData.endereco;
     
+    if (endereco) {
+      return {
+        city: endereco.cidade || 'Não definida',
+        uf: endereco.uf || 'XX',
+        neighborhood: endereco.bairro || '',
+        zipCode: endereco.cep || '',
+        fullAddress: `${endereco.logradouro || ''}, ${endereco.numero || ''} - ${endereco.bairro || ''}, ${endereco.cidade || ''}/${endereco.uf || ''}`.replace(/,\s*,/g, ',').replace(/^,\s*/, ''),
+        street: endereco.logradouro || '',
+        number: endereco.numero || '',
+        complement: endereco.complemento || '',
+        coordinates: null,
+        region: this.determineRegion(endereco.cidade, endereco.uf),
+        source: 'endereco_estruturado'
+      };
+    }
+    
+    // 🚨 ÚLTIMO RECURSO: Retornar padrão
+    console.log('❌ Nenhum endereço válido encontrado');
     return {
-      city: endereco.cidade || 'Não definida',
-      uf: endereco.uf || 'XX',
-      neighborhood: endereco.bairro || '',
-      zipCode: endereco.cep || '',
-      fullAddress: endereco.endereco || `${endereco.logradouro}, ${endereco.numero} - ${endereco.bairro}, ${endereco.cidade}/${endereco.uf}`,
-      coordinates: null, // Futuramente integrar com API de geocoding
-      region: this.determineRegion(endereco.cidade, endereco.uf),
-      source: 'endereco_faturamento' // Indicar que é endereço de faturamento
+      city: 'Não definida',
+      uf: 'XX',
+      neighborhood: '',
+      zipCode: '',
+      fullAddress: 'Endereço não encontrado',
+      street: '',
+      number: '',
+      complement: '',
+      coordinates: null,
+      region: 'Indefinida',
+      source: 'nao_encontrado'
     };
   },
 
