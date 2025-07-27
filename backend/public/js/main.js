@@ -238,7 +238,7 @@ loadLoadingsModules: function() {
   'loadings.js'
 ];
     
-    return this.loadScriptsSequentially(modules, '../js/modules/');
+    return this.loadScriptsSequentially(modules, 'js/modules/');
   }).catch(error => {
     console.warn('⚠️ API de rotas não encontrada, usando fallback local:', error);
     
