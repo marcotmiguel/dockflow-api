@@ -63,7 +63,7 @@ const LoadingsRouting = {
     return xmlItem.id;
   },
 
-  // Substitua a função extractDestination (linhas ~72-117) por:
+
 extractDestination: function(xmlData) {
     console.log('📍 Extraindo destino do XML...');
     
