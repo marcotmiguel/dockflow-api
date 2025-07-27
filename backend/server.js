@@ -64,11 +64,11 @@ app.use(bodyParser.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.static('public'));
 
 // 🛡️ Aplicar middlewares de segurança (se disponível)
-try {
-  applySecurityMiddleware(app);
-} catch (error) {
-  console.log('⚠️ Middleware de segurança não disponível, continuando...');
-}
+//try {
+//  applySecurityMiddleware(app);
+//} catch (error) {
+//  console.log('⚠️ Middleware de segurança não disponível, continuando...');
+//}
 
 // 📊 Logging melhorado
 const logRequest = (req, res, next) => {
