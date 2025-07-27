@@ -5,7 +5,7 @@ const router = express.Router();
 const controller = require('../controllers/loadingController');
 const { authMiddleware } = require('../middleware/authMiddleware');
 const mysql = require('mysql2/promise');
-const db = require('../database');
+const { db } = require('../database');
 
 router.get('/listar', controller.listar);
 router.post('/agendar', controller.agendar);
@@ -485,7 +485,7 @@ function sendWhatsAppNotification(queueData) {
 }
 
 // Buscar carregamentos de hoje
-const getTodayLoadings = (req, res) => {
+const getTodayLoadings = async (req, res) => {
   try {
     const today = new Date().toISOString().slice(0, 10);
     
@@ -501,17 +501,8 @@ const getTodayLoadings = (req, res) => {
       ORDER BY l.created_at DESC
     `;
     
-    db.query(query, [today], (err, results) => {
-      if (err) {
-        console.error('Erro ao buscar carregamentos do dia:', err);
-        return res.status(500).json({ 
-          message: 'Erro no servidor',
-          error: err.message 
-        });
-      }
-      
-      res.json(results || []);
-    });
+    const [results] = await db.execute(query, [today]);
+    res.json(results || []);
     
   } catch (error) {
     console.error('Erro na função getTodayLoadings:', error);
