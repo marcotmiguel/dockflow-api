@@ -63,8 +63,23 @@ const LoadingsRouting = {
     return xmlItem.id;
   },
 
-  // 📍 Extrair destino do XML
+  // 📍 Extrair destino do XML - FUNÇÃO CORRIGIDA
   extractDestination: function(xmlData) {
+    console.log('📍 Extraindo destino do XML...');
+    
+    // 🎯 PRIMEIRO: Tentar extrair endereço de entrega real do infAdFisco
+    let deliveryAddress = null;
+    
+    if (xmlData.informacoesAdicionais && xmlData.informacoesAdicionais.infAdFisco) {
+      deliveryAddress = this.extractDeliveryAddressFromInfo(xmlData.informacoesAdicionais.infAdFisco);
+      if (deliveryAddress) {
+        console.log('✅ Endereço de entrega encontrado em infAdFisco:', deliveryAddress);
+        return deliveryAddress;
+      }
+    }
+    
+    // 🔄 FALLBACK: Usar endereço de faturamento (enderDest)
+    console.log('⚠️ Endereço de entrega não encontrado, usando endereço de faturamento');
     const endereco = xmlData.enderecoEntrega || xmlData.endereco;
     
     return {
@@ -74,8 +89,111 @@ const LoadingsRouting = {
       zipCode: endereco.cep || '',
       fullAddress: endereco.endereco || `${endereco.logradouro}, ${endereco.numero} - ${endereco.bairro}, ${endereco.cidade}/${endereco.uf}`,
       coordinates: null, // Futuramente integrar com API de geocoding
-      region: this.determineRegion(endereco.cidade, endereco.uf)
+      region: this.determineRegion(endereco.cidade, endereco.uf),
+      source: 'endereco_faturamento' // Indicar que é endereço de faturamento
     };
+  },
+
+  // 🆕 NOVA FUNÇÃO: Extrair endereço de entrega do campo infAdFisco
+  extractDeliveryAddressFromInfo: function(infAdFisco) {
+    if (!infAdFisco || typeof infAdFisco !== 'string') {
+      return null;
+    }
+    
+    console.log('🔍 Analisando infAdFisco:', infAdFisco.substring(0, 200) + '...');
+    
+    let deliveryText = null;
+    
+    // 🎯 Padrão 1: "Local de entrega: [endereço]"
+    let match = infAdFisco.match(/Local de entrega:\s*([^/]+)/i);
+    if (match) {
+      deliveryText = match[1].trim();
+      console.log('✅ Padrão "Local de entrega:" encontrado');
+    }
+    
+    // 🎯 Padrão 2: "XENTX-[endereço]" (até o próximo | ou final)
+    if (!deliveryText) {
+      match = infAdFisco.match(/XENTX-([^|]+)/i);
+      if (match) {
+        deliveryText = match[1].trim();
+        console.log('✅ Padrão "XENTX-" encontrado');
+      }
+    }
+    
+    // 🎯 Padrão 3: Buscar endereço após horário com XENTX
+    if (!deliveryText) {
+      match = infAdFisco.match(/\d+h?\s+as?\s+\d+h?.*?XENTX-([^|]+)/i);
+      if (match) {
+        deliveryText = match[1].trim();
+        console.log('✅ Padrão "horário + XENTX-" encontrado');
+      }
+    }
+    
+    if (!deliveryText) {
+      console.log('❌ Nenhum padrão de endereço de entrega encontrado');
+      return null;
+    }
+    
+    // 🧹 Limpar e processar o texto do endereço
+    return this.parseDeliveryAddress(deliveryText);
+  },
+
+  // 🧹 NOVA FUNÇÃO: Processar texto do endereço de entrega
+  parseDeliveryAddress: function(addressText) {
+    console.log('🧹 Processando endereço:', addressText);
+    
+    // Remover informações extras no final
+    addressText = addressText.replace(/\s+Merc\..*$/i, '').trim();
+    
+    // Extrair informações do endereço
+    // Formato comum: "Logradouro, numero-bairro|cidade/uf-cep"
+    let city = 'Não definida';
+    let uf = 'XX';
+    let neighborhood = '';
+    let zipCode = '';
+    let fullAddress = addressText;
+    
+    // 🏙️ Extrair cidade/UF - padrões: "cidade/SP" ou "|cidade/SP-"
+    const cityUfMatch = addressText.match(/[|\s]([^|]+)\/(SP|RJ|MG|PR|SC|RS|ES|BA|GO|DF|[A-Z]{2})/i);
+    if (cityUfMatch) {
+      city = cityUfMatch[1].trim();
+      uf = cityUfMatch[2].toUpperCase();
+      console.log(`🏙️ Cidade/UF extraídos: ${city}/${uf}`);
+    }
+    
+    // 📮 Extrair CEP - padrões: "CEP 12345-678" ou "12345-678"
+    const cepMatch = addressText.match(/CEP\s*(\d{5}-?\d{3})|(\d{5}-?\d{3})/i);
+    if (cepMatch) {
+      zipCode = (cepMatch[1] || cepMatch[2]).replace(/\D/g, '').replace(/(\d{5})(\d{3})/, '$1-$2');
+      console.log(`📮 CEP extraído: ${zipCode}`);
+    }
+    
+    // 🏘️ Extrair bairro - texto entre "-" e "|"
+    const bairroMatch = addressText.match(/-([^|]+)\|/);
+    if (bairroMatch) {
+      neighborhood = bairroMatch[1].trim();
+      console.log(`🏘️ Bairro extraído: ${neighborhood}`);
+    }
+    
+    // 📍 Criar endereço limpo
+    const cleanAddress = addressText
+      .replace(/\|.*$/, '') // Remove tudo após |
+      .replace(/CEP\s*\d{5}-?\d{3}/i, '') // Remove CEP
+      .trim();
+    
+    const result = {
+      city: city,
+      uf: uf,
+      neighborhood: neighborhood,
+      zipCode: zipCode,
+      fullAddress: cleanAddress || addressText,
+      coordinates: null,
+      region: this.determineRegion(city, uf),
+      source: 'endereco_entrega' // Indicar que é endereço de entrega real
+    };
+    
+    console.log('✅ Endereço de entrega processado:', result);
+    return result;
   },
 
   // 🏙️ Determinar região
@@ -362,6 +480,7 @@ const LoadingsRouting = {
                     <div style="font-size: 11px; color: #666; margin-top: 3px;">
                       📍 ${xml.destination.city}/${xml.destination.uf}
                       ${xml.destination.zipCode ? ` • CEP: ${xml.destination.zipCode}` : ''}
+                      ${xml.destination.source === 'endereco_entrega' ? ' • ✅ Endereço de Entrega' : ' • ⚠️ Endereço de Faturamento'}
                     </div>
                   </td>
                   <td style="padding: 10px; text-align: right;">
