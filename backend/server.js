@@ -7,6 +7,7 @@ const cors = require('cors');
 const compression = require('compression');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const path = require('path');
 
 // 🛡️ Importar middlewares de segurança
 const { applySecurityMiddleware } = require('./middleware/security');
@@ -15,7 +16,7 @@ const { applySecurityMiddleware } = require('./middleware/security');
 const carregamentoRoutes = require('./routes/carregamentoRoutes');
 
 // 🔧 Configurações do servidor
-const PORT = process.env.PORT || 8080;
+const PORT = process.env.PORT || 3000;
 const NODE_ENV = process.env.NODE_ENV || 'development';
 
 // 🚀 Inicialização do app
@@ -25,7 +26,9 @@ const app = express();
 const corsOptions = {
   origin: function (origin, callback) {
     const allowedOrigins = [
+      'http://localhost:3000',
       'http://localhost:8080',
+      'http://127.0.0.1:3000',
       'http://127.0.0.1:8080',
       process.env.FRONTEND_URL,
       process.env.CORS_ORIGIN
@@ -51,7 +54,9 @@ app.use(compression()); // Compressão GZIP
 app.use(cors(corsOptions)); // CORS configurado
 app.use(bodyParser.json({ limit: '10mb' })); // Limite de payload
 app.use(bodyParser.urlencoded({ extended: true, limit: '10mb' }));
-app.use(express.static('../frontend')); // Servir arquivos estáticos
+
+// 📁 Servir arquivos estáticos do frontend
+app.use(express.static('public'));
 
 // 🛡️ Aplicar middlewares de segurança
 applySecurityMiddleware(app);
