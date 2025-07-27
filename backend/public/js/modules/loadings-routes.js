@@ -1,683 +1,899 @@
-// js/modules/loadings-routes.js
-// 🗺️ MÓDULO ROTAS - Sistema completo de gerenciamento de rotas com API
+// js/modules/loadings-routing.js
+// 🗺️ MÓDULO ROUTING - Sistema inteligente de roteirização
 
-const LoadingsRoutes = {
-  allRoutes: [],
-  isInitialized: false,
-  apiAvailable: false,
+const LoadingsRouting = {
+  pendingXMLs: [], // XMLs aguardando roteirização
+  activeRoutes: [], // Rotas em montagem
+  completedRoutes: [], // Rotas finalizadas e enviadas para carregamento
+  autoRoutingInterval: null,
 
-  // 🚀 Inicialização do sistema de rotas
+  // 🚀 Inicialização do sistema de roteirização
   init: function() {
-    console.log('🗺️ Inicializando sistema de rotas...');
-    this.setupRouteEventListeners();
-    this.addGlobalRouteFunctions();
-    
-    // Aguardar API estar disponível
-    setTimeout(async () => {
-      await this.checkAPIAndLoadRoutes();
-    }, 1000);
+    console.log('🗺️ Inicializando sistema de roteirização...');
+    this.setupRoutingEventListeners();
+    this.loadPendingXMLs();
+    this.setupAutoRouting();
+    this.loadStoredData();
   },
 
-  // 📡 Verificar API e carregar rotas
-  checkAPIAndLoadRoutes: async function() {
-    try {
-      // Verificar se RoutesAPI está disponível
-      if (typeof window.RoutesAPI !== 'undefined') {
-        this.apiAvailable = true;
-        console.log('✅ API de rotas disponível');
-        await this.loadRoutesFromAPI();
-      } else {
-        console.warn('⚠️ API de rotas não encontrada, usando dados locais');
-        this.apiAvailable = false;
-        this.loadRoutesLocal();
-      }
-      
-      this.isInitialized = true;
-      this.displayRoutes();
-      
-    } catch (error) {
-      console.error('❌ Erro ao inicializar rotas:', error);
-      this.loadRoutesLocal();
-    }
-  },
-
-  // 📋 Carregar rotas via API
-  loadRoutesFromAPI: async function() {
-    try {
-      console.log('📡 Carregando rotas via API...');
-      this.allRoutes = await window.RoutesAPI.getAllRoutes();
-      console.log(`✅ ${this.allRoutes.length} rotas carregadas via API`);
-      
-      // Salvar cache local
-      localStorage.setItem('dockflow_routes_cache', JSON.stringify(this.allRoutes));
-      
-    } catch (error) {
-      console.error('❌ Erro ao carregar rotas via API:', error);
-      this.loadRoutesLocal();
-    }
-  },
-
-  // 💾 Carregar rotas locais (fallback)
-  loadRoutesLocal: function() {
-    console.log('💾 Carregando rotas do armazenamento local...');
-    
-    try {
-      // Tentar carregar do cache
-      const cachedRoutes = localStorage.getItem('dockflow_routes_cache');
-      if (cachedRoutes) {
-        this.allRoutes = JSON.parse(cachedRoutes);
-        console.log(`✅ ${this.allRoutes.length} rotas carregadas do cache local`);
-        return;
-      }
-      
-      // Rotas padrão se não houver cache
-      this.allRoutes = [
-        {
-          id: 'RT001',
-          code: 'SP-CENTRO',
-          description: 'São Paulo Centro - Região Central',
-          priority: 'high',
-          active: true,
-          created_at: new Date().toISOString(),
-          region: 'Centro',
-          city: 'São Paulo',
-          state: 'SP',
-          loadings_count: 0
-        },
-        {
-          id: 'RT002',
-          code: 'SP-ZONA-SUL',
-          description: 'São Paulo Zona Sul - Região Sul',
-          priority: 'normal',
-          active: true,
-          created_at: new Date().toISOString(),
-          region: 'Zona Sul',
-          city: 'São Paulo',
-          state: 'SP',
-          loadings_count: 0
-        },
-        {
-          id: 'RT003',
-          code: 'RJ-CENTRO',
-          description: 'Rio de Janeiro Centro',
-          priority: 'normal',
-          active: true,
-          created_at: new Date().toISOString(),
-          region: 'Centro',
-          city: 'Rio de Janeiro',
-          state: 'RJ',
-          loadings_count: 0
-        },
-        {
-          id: 'RT004',
-          code: 'AUTO-GERAL',
-          description: 'Rota Automática Geral',
-          priority: 'normal',
-          active: true,
-          created_at: new Date().toISOString(),
-          region: 'Automática',
-          city: 'Múltiplas',
-          state: 'ALL',
-          loadings_count: 0
-        }
-      ];
-      
-      console.log(`✅ ${this.allRoutes.length} rotas padrão carregadas`);
-      
-      // Salvar rotas padrão no cache
-      localStorage.setItem('dockflow_routes_cache', JSON.stringify(this.allRoutes));
-      
-    } catch (error) {
-      console.error('❌ Erro ao carregar rotas locais:', error);
-      this.allRoutes = [];
-    }
-  },
-
-  // 📋 Event listeners para rotas
-  setupRouteEventListeners: function() {
-    setTimeout(() => {
-      // Botão de criar rota
-      const createRouteBtn = document.getElementById('save-route-btn');
-      if (createRouteBtn) {
-        createRouteBtn.addEventListener('click', () => this.handleCreateRoute());
-      }
-
-      // Formulário de rota
-      const routeForm = document.getElementById('create-route-form');
-      if (routeForm) {
-        routeForm.addEventListener('submit', (e) => {
-          e.preventDefault();
-          this.handleCreateRoute();
-        });
-      }
-
-      // Botão de refresh
-      const refreshBtn = document.getElementById('refresh-routes');
-      if (refreshBtn) {
-        refreshBtn.addEventListener('click', () => this.refreshRoutes());
-      }
-
-      console.log('✅ Event listeners de rotas configurados');
-    }, 500);
-  },
-
-  // 🌐 Funções globais
-  addGlobalRouteFunctions: function() {
-    window.showRoutesTab = () => this.showRoutesTab();
-    window.createNewRoute = (data) => this.createRoute(data);
-    window.findRouteForXML = (xmlData) => this.findBestRouteForXML(xmlData);
-    
-    console.log('🌐 Funções globais de rotas adicionadas');
-  },
-
-  // 📂 Mostrar aba de rotas
-  showRoutesTab: function() {
-    document.querySelectorAll('.nav-link').forEach(tab => {
-      tab.classList.remove('active');
-    });
-    
-    document.querySelectorAll('.tab-pane').forEach(pane => {
-      pane.classList.remove('show', 'active');
-    });
-    
-    const routesTab = document.getElementById('routes-tab');
-    const routesPane = document.getElementById('routes');
-    
-    if (routesTab && routesPane) {
-      routesTab.classList.add('active');
-      routesPane.classList.add('show', 'active');
-      this.displayRoutes();
-    }
-  },
-
-  // ➕ Criar nova rota
-  createRoute: async function(routeData) {
-    try {
-      console.log('➕ Criando nova rota:', routeData);
-      
-      let newRoute;
-      
-      if (this.apiAvailable && window.RoutesAPI) {
-        // Usar API
-        newRoute = await window.RoutesAPI.createRoute(routeData);
-        console.log('✅ Rota criada via API:', newRoute.code);
-      } else {
-        // Criar localmente
-        newRoute = {
-          id: this.generateRouteId(),
-          code: routeData.code.toUpperCase(),
-          description: routeData.description,
-          priority: routeData.priority || 'normal',
-          active: true,
-          created_at: new Date().toISOString(),
-          region: this.extractRegion(routeData.description),
-          city: this.extractCity(routeData.description),
-          state: this.extractState(routeData.code),
-          loadings_count: 0
-        };
-        
-        this.allRoutes.push(newRoute);
-        localStorage.setItem('dockflow_routes_cache', JSON.stringify(this.allRoutes));
-        console.log('✅ Rota criada localmente:', newRoute.code);
-      }
-      
-      // Atualizar display
-      this.displayRoutes();
-      
-      if (typeof Utils !== 'undefined') {
-        Utils.showSuccessMessage(`✅ Rota "${newRoute.code}" criada com sucesso!`);
-      }
-      
-      return newRoute;
-      
-    } catch (error) {
-      console.error('❌ Erro ao criar rota:', error);
-      
-      if (typeof Utils !== 'undefined') {
-        Utils.showErrorMessage('❌ Erro ao criar rota: ' + error.message);
-      }
-      
-      throw error;
-    }
-  },
-
-  // 🔄 Atualizar rota
-  updateRoute: async function(routeId, updateData) {
-    try {
-      if (this.apiAvailable && window.RoutesAPI) {
-        // Usar API
-        const updatedRoute = await window.RoutesAPI.updateRoute(routeId, updateData);
-        
-        // Atualizar array local
-        const routeIndex = this.allRoutes.findIndex(r => r.id === routeId);
-        if (routeIndex !== -1) {
-          this.allRoutes[routeIndex] = updatedRoute;
-        }
-        
-        console.log('✅ Rota atualizada via API:', updatedRoute.code);
-        return updatedRoute;
-        
-      } else {
-        // Atualizar localmente
-        const routeIndex = this.allRoutes.findIndex(r => r.id === routeId);
-        
-        if (routeIndex !== -1) {
-          this.allRoutes[routeIndex] = { ...this.allRoutes[routeIndex], ...updateData };
-          localStorage.setItem('dockflow_routes_cache', JSON.stringify(this.allRoutes));
-          console.log('✅ Rota atualizada localmente');
-          return this.allRoutes[routeIndex];
-        } else {
-          throw new Error('Rota não encontrada');
-        }
-      }
-      
-    } catch (error) {
-      console.error('❌ Erro ao atualizar rota:', error);
-      throw error;
-    }
-  },
-
-  // ❌ Deletar rota
-  deleteRoute: async function(routeId) {
-    try {
-      if (this.apiAvailable && window.RoutesAPI) {
-        // Usar API
-        await window.RoutesAPI.deleteRoute(routeId);
-      }
-      
-      // Remover do array local
-      this.allRoutes = this.allRoutes.filter(r => r.id !== routeId);
-      localStorage.setItem('dockflow_routes_cache', JSON.stringify(this.allRoutes));
-      
-      console.log('✅ Rota deletada:', routeId);
-      this.displayRoutes();
-      
-      if (typeof Utils !== 'undefined') {
-        Utils.showSuccessMessage('✅ Rota deletada com sucesso!');
-      }
-      
-    } catch (error) {
-      console.error('❌ Erro ao deletar rota:', error);
-      
-      if (typeof Utils !== 'undefined') {
-        Utils.showErrorMessage('❌ Erro ao deletar rota: ' + error.message);
-      }
-    }
-  },
-
-  // 🔍 Buscar melhor rota para XML
-  findBestRouteForXML: async function(xmlData) {
-    try {
-      console.log('🔍 Buscando melhor rota para XML...');
-      
-      if (this.apiAvailable && window.RoutesAPI) {
-        // Usar API inteligente
-        const bestRoute = await window.RoutesAPI.findBestRouteForXML(xmlData);
-        if (bestRoute) {
-          console.log(`✅ Melhor rota encontrada via API: ${bestRoute.code}`);
-          return bestRoute;
-        }
-      }
-      
-      // Fallback: busca local
-      const city = xmlData.endereco.cidade;
-      const state = xmlData.endereco.uf;
-      
-      console.log(`🔍 Buscando rota local para: ${city}/${state}`);
-      
-      // Buscar rotas da mesma cidade/estado
-      let candidateRoutes = this.allRoutes.filter(route => 
-        route.active && (
-          route.city === city || 
-          route.state === state ||
-          route.state === 'ALL'
-        )
-      );
-      
-      if (candidateRoutes.length === 0) {
-        // Criar rota automática
-        const autoRoute = await this.createAutomaticRoute(xmlData);
-        return autoRoute;
-      }
-      
-      // Ordenar por prioridade e menor carga
-      candidateRoutes.sort((a, b) => {
-        const priorityOrder = { 'urgent': 3, 'high': 2, 'normal': 1 };
-        const aPriority = priorityOrder[a.priority] || 1;
-        const bPriority = priorityOrder[b.priority] || 1;
-        
-        if (aPriority !== bPriority) {
-          return bPriority - aPriority;
-        }
-        
-        return (a.loadings_count || 0) - (b.loadings_count || 0);
+  // 📋 Event listeners de roteirização
+  setupRoutingEventListeners: function() {
+    // Listener para nova aba de roteirização (se existir)
+    const routingTab = document.getElementById('routing-tab');
+    if (routingTab) {
+      routingTab.addEventListener('click', () => {
+        setTimeout(() => {
+          this.displayRoutingInterface();
+        }, 100);
       });
-      
-      const bestRoute = candidateRoutes[0];
-      console.log(`✅ Melhor rota local encontrada: ${bestRoute.code}`);
-      return bestRoute;
-      
-    } catch (error) {
-      console.error('❌ Erro ao buscar melhor rota:', error);
-      
-      // Retornar rota padrão
-      return this.allRoutes.find(r => r.active) || this.allRoutes[0];
     }
+
+    // Event listeners para futuras funcionalidades
+    console.log('📋 Event listeners de roteirização configurados');
   },
 
-  // 🚀 Criar rota automática
-  createAutomaticRoute: async function(xmlData) {
-    try {
-      const city = xmlData.endereco.cidade;
-      const state = xmlData.endereco.uf;
-      const timestamp = Date.now();
-      
-      const autoRouteData = {
-        code: `AUTO-${state}-${timestamp}`,
-        description: `Rota Automática - ${city}/${state}`,
-        priority: 'normal'
-      };
-      
-      console.log(`🤖 Criando rota automática para ${city}/${state}`);
-      const newRoute = await this.createRoute(autoRouteData);
-      
-      console.log(`✅ Rota automática criada: ${newRoute.code}`);
-      return newRoute;
-      
-    } catch (error) {
-      console.error('❌ Erro ao criar rota automática:', error);
-      
-      // Retornar rota padrão se falhar
-      return this.allRoutes.find(r => r.code === 'AUTO-GERAL') || this.allRoutes[0];
-    }
+  // 📦 Receber XML do módulo XML (em vez de ir direto para fila)
+  receiveXMLForRouting: function(xmlData, routeData) {
+    console.log('📦 Recebendo XML para roteirização:', xmlData.notaFiscal.numero);
+    
+    const xmlItem = {
+      id: Date.now(),
+      xmlData: xmlData,
+      routeData: routeData,
+      received_at: new Date().toISOString(),
+      status: 'pending', // pending, routed, loading
+      destination: this.extractDestination(xmlData),
+      priority: this.calculatePriority(xmlData),
+      vehicleRequirement: this.calculateVehicleRequirement(xmlData),
+      estimatedValue: this.calculateTotalValue(xmlData)
+    };
+    
+    this.pendingXMLs.push(xmlItem);
+    this.saveToStorage();
+    
+    console.log(`✅ XML ${xmlData.notaFiscal.numero} adicionado à roteirização`);
+    console.log(`📍 Destino: ${xmlItem.destination.city}/${xmlItem.destination.uf}`);
+    console.log(`⚡ Prioridade: ${xmlItem.priority}`);
+    
+    // Tentar roteirização automática
+    setTimeout(() => {
+      this.tryAutoRouting();
+    }, 1000);
+    
+    return xmlItem.id;
   },
 
-  // 📈 Incrementar contador de carregamentos
-  incrementRouteLoadings: async function(routeId) {
-    try {
-      const route = this.allRoutes.find(r => r.id === routeId);
-      if (route) {
-        const newCount = (route.loadings_count || 0) + 1;
-        await this.updateRoute(routeId, { loadings_count: newCount });
-        console.log(`📈 Contador da rota ${route.code} incrementado para ${newCount}`);
+  // 📍 Extrair destino do XML
+  extractDestination: function(xmlData) {
+    const endereco = xmlData.enderecoEntrega || xmlData.endereco;
+    
+    return {
+      city: endereco.cidade || 'Não definida',
+      uf: endereco.uf || 'XX',
+      neighborhood: endereco.bairro || '',
+      zipCode: endereco.cep || '',
+      fullAddress: endereco.endereco || `${endereco.logradouro}, ${endereco.numero} - ${endereco.bairro}, ${endereco.cidade}/${endereco.uf}`,
+      coordinates: null, // Futuramente integrar com API de geocoding
+      region: this.determineRegion(endereco.cidade, endereco.uf)
+    };
+  },
+
+  // 🏙️ Determinar região
+  determineRegion: function(city, uf) {
+    // Lógica aprimorada de regionalização
+    const regions = {
+      'SP': 'São Paulo',
+      'RJ': 'Rio de Janeiro',
+      'MG': 'Minas Gerais',
+      'PR': 'Paraná',
+      'SC': 'Santa Catarina',
+      'RS': 'Rio Grande do Sul',
+      'ES': 'Espírito Santo',
+      'BA': 'Bahia',
+      'GO': 'Goiás',
+      'DF': 'Distrito Federal'
+    };
+    
+    // Capitais e regiões metropolitanas
+    const capitals = {
+      'São Paulo': 'SP-Capital',
+      'Rio de Janeiro': 'RJ-Capital', 
+      'Belo Horizonte': 'MG-Capital',
+      'Curitiba': 'PR-Capital',
+      'Florianópolis': 'SC-Capital',
+      'Porto Alegre': 'RS-Capital',
+      'Vitória': 'ES-Capital',
+      'Salvador': 'BA-Capital',
+      'Goiânia': 'GO-Capital',
+      'Brasília': 'DF-Capital'
+    };
+    
+    // Verificar se é capital
+    if (city && capitals[city]) {
+      return capitals[city];
+    }
+    
+    // Região metropolitana (simplificado)
+    const metropolitan = ['Guarulhos', 'Osasco', 'Santo André', 'São Bernardo', 'Niterói', 'Duque de Caxias', 'Nova Iguaçu'];
+    if (city && metropolitan.some(metro => city.includes(metro))) {
+      return `${regions[uf] || uf}-Metropolitana`;
+    }
+    
+    return `${regions[uf] || uf}-Interior`;
+  },
+
+  // ⚡ Calcular prioridade
+  calculatePriority: function(xmlData) {
+    let priority = 'normal';
+    let reasons = [];
+    
+    // Verificar agendamento
+    if (xmlData.agendamento && xmlData.agendamento.temAgendamento) {
+      const today = new Date();
+      const scheduleDate = new Date(xmlData.agendamento.data);
+      const diffDays = Math.ceil((scheduleDate - today) / (1000 * 60 * 60 * 24));
+      
+      if (diffDays <= 1) {
+        priority = 'urgent';
+        reasons.push('Entrega hoje/amanhã');
+      } else if (diffDays <= 3) {
+        priority = priority === 'normal' ? 'high' : priority;
+        reasons.push('Entrega em 3 dias');
       }
-    } catch (error) {
-      console.error('❌ Erro ao incrementar contador:', error);
     }
+    
+    // Verificar valor da NF
+    const totalValue = this.calculateTotalValue(xmlData);
+    if (totalValue > 100000) {
+      priority = 'urgent';
+      reasons.push('Alto valor (>R$ 100k)');
+    } else if (totalValue > 50000) {
+      priority = priority === 'normal' ? 'high' : priority;
+      reasons.push('Médio-alto valor (>R$ 50k)');
+    }
+    
+    // Verificar quantidade de produtos
+    if (xmlData.produtos.length > 50) {
+      priority = priority === 'normal' ? 'high' : priority;
+      reasons.push('Muitos produtos');
+    }
+    
+    console.log(`⚡ Prioridade ${priority} para NF ${xmlData.notaFiscal.numero}: ${reasons.join(', ')}`);
+    return priority;
   },
 
-  // 🖥️ Exibir rotas na interface
-  displayRoutes: function() {
-    const routesList = document.getElementById('routes-list');
-    if (!routesList) return;
+  // 💰 Calcular valor total
+  calculateTotalValue: function(xmlData) {
+    return xmlData.produtos.reduce((sum, p) => sum + p.valorTotal, 0);
+  },
 
-    if (this.allRoutes.length === 0) {
-      routesList.innerHTML = `
-        <tr>
-          <td colspan="5" class="text-center py-4 text-muted">
-            <i class="fas fa-route fa-2x mb-2"></i><br>
-            Nenhuma rota encontrada
-          </td>
-        </tr>
-      `;
+  // 🚛 Calcular requisitos do veículo
+  calculateVehicleRequirement: function(xmlData) {
+    // Estimativas baseadas nos produtos
+    let totalWeight = 0;
+    let totalVolume = 0;
+    let specialRequirements = [];
+    
+    xmlData.produtos.forEach(produto => {
+      // Estimativa de peso (seria melhor ter dados reais)
+      let estimatedWeight = produto.quantidade * 0.5; // 500g por item em média
+      
+      // Ajustes por tipo de produto
+      const description = produto.descricao.toLowerCase();
+      if (description.includes('líquido') || description.includes('água') || description.includes('suco')) {
+        estimatedWeight = produto.quantidade * 1.0; // Líquidos são mais pesados
+      } else if (description.includes('papel') || description.includes('tecido')) {
+        estimatedWeight = produto.quantidade * 0.2; // Papel/tecido são leves
+      } else if (description.includes('metal') || description.includes('ferro')) {
+        estimatedWeight = produto.quantidade * 2.0; // Metais são pesados
+      }
+      
+      totalWeight += estimatedWeight;
+      totalVolume += produto.quantidade * 0.01; // 10cm³ por item em média
+      
+      // Requisitos especiais
+      if (description.includes('frágil') || description.includes('vidro')) {
+        specialRequirements.push('Transporte cuidadoso');
+      }
+      if (description.includes('refrigerad') || description.includes('gelad')) {
+        specialRequirements.push('Refrigeração');
+      }
+    });
+    
+    // Determinar tipo de veículo
+    let vehicleType = 'Van';
+    if (totalWeight > 1500 || totalVolume > 30) {
+      vehicleType = 'Caminhão 3/4';
+    }
+    if (totalWeight > 5000 || totalVolume > 80) {
+      vehicleType = 'Caminhão Toco';
+    }
+    if (totalWeight > 12000 || totalVolume > 150) {
+      vehicleType = 'Caminhão Truck';
+    }
+    
+    return {
+      type: vehicleType,
+      estimatedWeight: Math.round(totalWeight),
+      estimatedVolume: Math.round(totalVolume),
+      specialRequirements: [...new Set(specialRequirements)] // Remove duplicatas
+    };
+  },
+
+  // 🤖 Tentar roteirização automática
+  tryAutoRouting: function() {
+    console.log('🤖 Tentando roteirização automática...');
+    
+    const pendingXMLs = this.pendingXMLs.filter(xml => xml.status === 'pending');
+    if (pendingXMLs.length === 0) {
+      console.log('📭 Nenhum XML pendente para roteirização');
       return;
     }
-
-    routesList.innerHTML = this.allRoutes.map(route => `
-      <tr class="${route.active ? '' : 'table-secondary'}">
-        <td>
-          <span class="badge bg-${this.getPriorityColor(route.priority)} me-2">${route.priority.toUpperCase()}</span>
-          <strong>${route.code}</strong>
-        </td>
-        <td>
-          ${route.description}
-          ${route.city && route.city !== 'Não especificada' ? `<br><small class="text-muted">${route.city}/${route.state}</small>` : ''}
-        </td>
-        <td>
-          <span class="badge bg-info">${route.loadings_count || 0}</span>
-        </td>
-        <td>
-          <span class="badge bg-${route.active ? 'success' : 'secondary'}">
-            ${route.active ? 'Ativa' : 'Inativa'}
-          </span>
-        </td>
-        <td>
-          <div class="btn-group btn-group-sm">
-            <button class="btn btn-outline-primary" onclick="LoadingsRoutes.editRoute('${route.id}')" title="Editar">
-              <i class="fas fa-edit"></i>
-            </button>
-            <button class="btn btn-outline-${route.active ? 'warning' : 'success'}" 
-                    onclick="LoadingsRoutes.toggleRouteStatus('${route.id}')" 
-                    title="${route.active ? 'Desativar' : 'Ativar'}">
-              <i class="fas fa-${route.active ? 'pause' : 'play'}"></i>
-            </button>
-            <button class="btn btn-outline-danger" onclick="LoadingsRoutes.confirmDeleteRoute('${route.id}')" title="Deletar">
-              <i class="fas fa-trash"></i>
-            </button>
-          </div>
-        </td>
-      </tr>
-    `).join('');
-
-    console.log(`✅ ${this.allRoutes.length} rotas exibidas na interface`);
+    
+    console.log(`📦 ${pendingXMLs.length} XMLs pendentes para roteirização`);
+    
+    // Agrupar por região e destino próximo
+    const groupedByRegion = this.groupByRegion(pendingXMLs);
+    
+    Object.entries(groupedByRegion).forEach(([region, xmls]) => {
+      const minXMLs = this.getMinXMLsForRoute(region);
+      console.log(`🏙️ Região ${region}: ${xmls.length} XMLs (min: ${minXMLs})`);
+      
+      if (xmls.length >= minXMLs) {
+        // ⚠️ AQUI FOI A MUDANÇA PRINCIPAL - Em vez de criar direto, mostra para aprovação
+        this.showRouteApprovalDialog(region, xmls);
+      } else {
+        console.log(`⏳ Aguardando mais XMLs para região ${region}`);
+      }
+    });
   },
 
-  // 🎨 Cor da prioridade
-  getPriorityColor: function(priority) {
-    const colors = {
-      'urgent': 'danger',
-      'high': 'warning',
-      'normal': 'primary'
+  // 🏗️ Agrupar por região
+  groupByRegion: function(xmls) {
+    const grouped = {};
+    
+    xmls.forEach(xml => {
+      const region = xml.destination.region;
+      if (!grouped[region]) {
+        grouped[region] = [];
+      }
+      grouped[region].push(xml);
+    });
+    
+    return grouped;
+  },
+
+  // 📊 Mínimo de XMLs para formar rota
+  getMinXMLsForRoute: function(region) {
+    // Lógica baseada na região e hora do dia
+    const hour = new Date().getHours();
+    
+    if (region.includes('Capital')) {
+      // Capitais: mais XMLs por eficiência
+      return hour > 16 ? 2 : 3; // Menos exigente no final do dia
+    } else if (region.includes('Metropolitana')) {
+      return hour > 16 ? 2 : 3;
+    } else {
+      // Interior: menos XMLs por distância
+      return hour > 16 ? 1 : 2;
+    }
+  },
+
+  // 📋 NOVA FUNÇÃO - Mostrar tela de aprovação
+  showRouteApprovalDialog: function(region, xmls) {
+    console.log(`📋 Mostrando tela de aprovação para rota ${region} com ${xmls.length} XMLs`);
+    
+    // Remover modal existente se houver
+    const existingModal = document.getElementById('route-approval-modal');
+    if (existingModal) {
+      existingModal.remove();
+    }
+    
+    // Criar o modal de aprovação
+    const modal = document.createElement('div');
+    modal.id = 'route-approval-modal';
+    modal.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      z-index: 10000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    `;
+    
+    // Calcular totais
+    const totalValue = xmls.reduce((sum, xml) => sum + xml.estimatedValue, 0);
+    const totalProducts = xmls.reduce((sum, xml) => sum + xml.xmlData.produtos.length, 0);
+    
+    // Conteúdo do modal
+    modal.innerHTML = `
+      <div style="
+        background: white;
+        border-radius: 15px;
+        max-width: 80%;
+        max-height: 80%;
+        overflow-y: auto;
+        padding: 25px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+      ">
+        <div style="text-align: center; margin-bottom: 20px;">
+          <h2 style="color: #2196F3; margin: 0;">🚚 Aprovação de Rota</h2>
+          <p style="color: #666; margin: 5px 0;">Região: <strong>${region}</strong></p>
+          <p style="color: #666; margin: 0;">
+            📦 <strong>${xmls.length}</strong> entregas | 
+            💰 <strong>R$ ${totalValue.toLocaleString('pt-BR')}</strong> | 
+            📋 <strong>${totalProducts}</strong> produtos
+          </p>
+        </div>
+        
+        <div style="
+          max-height: 400px;
+          overflow-y: auto;
+          border: 1px solid #ddd;
+          border-radius: 8px;
+          margin-bottom: 20px;
+        ">
+          <table style="width: 100%; border-collapse: collapse;">
+            <thead style="background: #f5f5f5; position: sticky; top: 0;">
+              <tr>
+                <th style="padding: 12px; text-align: left; border-bottom: 1px solid #ddd;">NF</th>
+                <th style="padding: 12px; text-align: left; border-bottom: 1px solid #ddd;">Destinatário</th>
+                <th style="padding: 12px; text-align: left; border-bottom: 1px solid #ddd;">Endereço</th>
+                <th style="padding: 12px; text-align: left; border-bottom: 1px solid #ddd;">Valor</th>
+                <th style="padding: 12px; text-align: left; border-bottom: 1px solid #ddd;">Prioridade</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${xmls.map(xml => `
+                <tr style="border-bottom: 1px solid #eee;">
+                  <td style="padding: 10px; font-weight: bold; color: #2196F3;">${xml.xmlData.notaFiscal.numero}</td>
+                  <td style="padding: 10px;">
+                    <div style="font-weight: bold;">${xml.xmlData.destinatario.nome}</div>
+                    <div style="font-size: 11px; color: #666;">CNPJ: ${xml.xmlData.destinatario.cnpj}</div>
+                  </td>
+                  <td style="padding: 10px; max-width: 200px;">
+                    <div style="font-size: 12px; line-height: 1.3;">
+                      ${xml.destination.fullAddress}
+                    </div>
+                    <div style="font-size: 11px; color: #666; margin-top: 3px;">
+                      📍 ${xml.destination.city}/${xml.destination.uf}
+                      ${xml.destination.zipCode ? ` • CEP: ${xml.destination.zipCode}` : ''}
+                    </div>
+                  </td>
+                  <td style="padding: 10px; text-align: right;">
+                    <div style="font-weight: bold; color: #4CAF50;">
+                      R$ ${xml.estimatedValue.toLocaleString('pt-BR')}
+                    </div>
+                    <div style="font-size: 11px; color: #666;">
+                      ${xml.xmlData.produtos.length} produtos
+                    </div>
+                  </td>
+                  <td style="padding: 10px; text-align: center;">
+                    <span style="
+                      padding: 4px 8px;
+                      border-radius: 12px;
+                      font-size: 11px;
+                      font-weight: bold;
+                      background: ${xml.priority === 'urgent' ? '#ffebee' : xml.priority === 'high' ? '#fff3e0' : '#f1f8e9'};
+                      color: ${xml.priority === 'urgent' ? '#c62828' : xml.priority === 'high' ? '#ef6c00' : '#388e3c'};
+                    ">
+                      ${xml.priority === 'urgent' ? '🔴 URGENTE' : xml.priority === 'high' ? '🟡 ALTA' : '🟢 NORMAL'}
+                    </span>
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+        
+        <div style="text-align: center;">
+          <button id="approve-route-btn" style="
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-right: 10px;
+            transition: background 0.3s;
+          " onmouseover="this.style.background='#45a049'" onmouseout="this.style.background='#4CAF50'">
+            ✅ Aprovar e Criar Rota
+          </button>
+          
+          <button id="cancel-route-btn" style="
+            background: #f44336;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.3s;
+          " onmouseover="this.style.background='#da190b'" onmouseout="this.style.background='#f44336'">
+            ❌ Cancelar
+          </button>
+        </div>
+      </div>
+    `;
+    
+    // Adicionar ao body
+    document.body.appendChild(modal);
+    
+    // Event listeners dos botões
+    document.getElementById('approve-route-btn').addEventListener('click', () => {
+      this.approveAndCreateRoute(region, xmls);
+      modal.remove();
+    });
+    
+    document.getElementById('cancel-route-btn').addEventListener('click', () => {
+      console.log('❌ Criação de rota cancelada pelo usuário');
+      modal.remove();
+    });
+    
+    // Fechar com ESC
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape' && document.getElementById('route-approval-modal')) {
+        document.getElementById('route-approval-modal').remove();
+      }
+    });
+    
+    console.log('📋 Tela de aprovação exibida');
+  },
+
+  // ✅ NOVA FUNÇÃO - Aprovar e criar rota (só executa após aprovação)
+  approveAndCreateRoute: function(region, xmls) {
+    console.log(`✅ Rota aprovada pelo usuário! Criando rota para ${region} com ${xmls.length} XMLs`);
+    
+    // Agora executa a criação que antes era automática
+    this.createAutomaticRoute(region, xmls);
+  },
+
+  // ✨ Criar rota automática (modificada para ser executada só após aprovação)
+  createAutomaticRoute: function(region, xmls) {
+    console.log(`✨ Criando rota aprovada para ${region} com ${xmls.length} XMLs`);
+    
+    // Ordenar por prioridade e valor
+    xmls.sort((a, b) => {
+      const priorities = { 'urgent': 3, 'high': 2, 'normal': 1 };
+      const priorityDiff = priorities[b.priority] - priorities[a.priority];
+      if (priorityDiff !== 0) return priorityDiff;
+      
+      // Se mesma prioridade, ordenar por valor
+      return b.estimatedValue - a.estimatedValue;
+    });
+    
+    const routeCode = this.generateRouteCode(region);
+    const route = {
+      id: Date.now(),
+      code: routeCode,
+      name: `Rota Aprovada - ${region}`,
+      region: region,
+      xmls: xmls,
+      status: 'approved', // Já aprovada pelo usuário
+      created_at: new Date().toISOString(),
+      approved_at: new Date().toISOString(), // Marcando como aprovada agora
+      estimatedDeliveries: xmls.length,
+      totalValue: xmls.reduce((sum, xml) => sum + xml.estimatedValue, 0),
+      vehicleRequirement: this.determineRouteVehicleRequirement(xmls),
+      deliverySequence: this.optimizeDeliverySequence(xmls),
+      estimatedDuration: this.calculateRouteDuration(xmls),
+      createdBy: 'Sistema Aprovado'
     };
-    return colors[priority] || 'secondary';
-  },
-
-  // ✏️ Editar rota
-  editRoute: function(routeId) {
-    const route = this.allRoutes.find(r => r.id === routeId);
-    if (!route) return;
-
-    // Preencher modal com dados da rota
-    document.getElementById('route-code').value = route.code;
-    document.getElementById('route-description').value = route.description;
-    document.getElementById('route-priority').value = route.priority;
-
-    // Abrir modal
-    const modal = new bootstrap.Modal(document.getElementById('createRouteModal'));
-    modal.show();
-
-    // Alterar comportamento do botão para edição
-    const saveBtn = document.getElementById('save-route-btn');
-    saveBtn.onclick = () => this.handleUpdateRoute(routeId);
-    document.getElementById('save-route-text').textContent = 'Atualizar Rota';
-  },
-
-  // 🔄 Alternar status da rota
-  toggleRouteStatus: async function(routeId) {
-    try {
-      const route = this.allRoutes.find(r => r.id === routeId);
-      if (route) {
-        await this.updateRoute(routeId, { active: !route.active });
-        this.displayRoutes();
+    
+    this.activeRoutes.push(route);
+    
+    // Atualizar status dos XMLs
+    xmls.forEach(xml => {
+      const index = this.pendingXMLs.findIndex(p => p.id === xml.id);
+      if (index !== -1) {
+        this.pendingXMLs[index].status = 'routed';
+        this.pendingXMLs[index].route_id = route.id;
       }
-    } catch (error) {
-      console.error('❌ Erro ao alterar status da rota:', error);
-    }
+    });
+    
+    this.saveToStorage();
+    
+    // Notificar usuário
+    Utils.showSuccessMessage(`🗺️ Rota criada e aprovada: ${route.code}<br>📦 ${route.estimatedDeliveries} entregas<br>💰 R$ ${route.totalValue.toLocaleString('pt-BR')}<br>🚛 Veículo: ${route.vehicleRequirement.type}`);
+    
+    // Criar carregamento imediatamente pois já foi aprovada
+    console.log(`✅ Rota ${route.code} aprovada automaticamente`);
+    this.createConsolidatedLoading(route);
   },
 
-  // ❌ Confirmar deleção de rota
-  confirmDeleteRoute: function(routeId) {
-    const route = this.allRoutes.find(r => r.id === routeId);
-    if (!route) return;
-
-    if (confirm(`Tem certeza que deseja deletar a rota "${route.code}"?\n\nEsta ação não pode ser desfeita.`)) {
-      this.deleteRoute(routeId);
-    }
+  // 🏷️ Gerar código da rota
+  generateRouteCode: function(region) {
+    const regionCode = region.substring(0, 3).toUpperCase().replace('-', '');
+    const date = new Date();
+    const dateCode = `${(date.getMonth() + 1).toString().padStart(2, '0')}${date.getDate().toString().padStart(2, '0')}`;
+    const timeCode = date.getHours().toString().padStart(2, '0');
+    
+    return `AUTO-${regionCode}-${dateCode}-${timeCode}`;
   },
 
-  // 📋 Handler para criar rota
-  handleCreateRoute: async function() {
+  // 🚛 Determinar requisito de veículo para rota
+  determineRouteVehicleRequirement: function(xmls) {
+    const totalWeight = xmls.reduce((sum, xml) => sum + xml.vehicleRequirement.estimatedWeight, 0);
+    const totalVolume = xmls.reduce((sum, xml) => sum + xml.vehicleRequirement.estimatedVolume, 0);
+    
+    // Coletar requisitos especiais
+    const specialRequirements = [];
+    xmls.forEach(xml => {
+      specialRequirements.push(...xml.vehicleRequirement.specialRequirements);
+    });
+    const uniqueRequirements = [...new Set(specialRequirements)];
+    
+    let vehicleType = 'Van';
+    if (totalWeight > 1500 || totalVolume > 30) {
+      vehicleType = 'Caminhão 3/4';
+    }
+    if (totalWeight > 5000 || totalVolume > 80) {
+      vehicleType = 'Caminhão Toco';
+    }
+    if (totalWeight > 12000 || totalVolume > 150) {
+      vehicleType = 'Caminhão Truck';
+    }
+    
+    return {
+      type: vehicleType,
+      totalWeight: totalWeight,
+      totalVolume: totalVolume,
+      capacity: this.getVehicleCapacity(vehicleType),
+      specialRequirements: uniqueRequirements,
+      utilizationPercent: this.calculateUtilization(totalWeight, totalVolume, vehicleType)
+    };
+  },
+
+  // 📏 Capacidade do veículo
+  getVehicleCapacity: function(vehicleType) {
+    const capacities = {
+      'Van': { weight: 1500, volume: 30 },
+      'Caminhão 3/4': { weight: 5000, volume: 80 },
+      'Caminhão Toco': { weight: 12000, volume: 150 },
+      'Caminhão Truck': { weight: 20000, volume: 300 }
+    };
+    
+    return capacities[vehicleType] || capacities['Van'];
+  },
+
+  // 📊 Calcular utilização
+  calculateUtilization: function(weight, volume, vehicleType) {
+    const capacity = this.getVehicleCapacity(vehicleType);
+    const weightUtil = (weight / capacity.weight) * 100;
+    const volumeUtil = (volume / capacity.volume) * 100;
+    
+    return Math.round(Math.max(weightUtil, volumeUtil));
+  },
+
+  // 🎯 Otimizar sequência de entrega
+  optimizeDeliverySequence: function(xmls) {
+    // Algoritmo de otimização simples
+    return xmls
+      .map((xml, index) => ({
+        sequence: index + 1,
+        xmlId: xml.id,
+        nf: xml.xmlData.notaFiscal.numero,
+        destination: xml.destination.fullAddress,
+        city: xml.destination.city,
+        priority: xml.priority,
+        estimatedTime: this.estimateDeliveryTime(xml, index),
+        value: xml.estimatedValue
+      }))
+      .sort((a, b) => {
+        // Primeiro por prioridade
+        const priorities = { 'urgent': 3, 'high': 2, 'normal': 1 };
+        const priorityDiff = priorities[b.priority] - priorities[a.priority];
+        if (priorityDiff !== 0) return priorityDiff;
+        
+        // Depois por cidade (agrupamento geográfico)
+        return a.city.localeCompare(b.city);
+      })
+      .map((item, index) => ({ ...item, sequence: index + 1 }));
+  },
+
+  // ⏰ Estimar tempo de entrega
+  estimateDeliveryTime: function(xml, sequenceIndex) {
+    const baseTime = 45; // 45 min por entrega
+    const travelTime = sequenceIndex * 25; // 25 min entre entregas
+    const priorityAdjustment = xml.priority === 'urgent' ? -10 : xml.priority === 'high' ? -5 : 0;
+    
+    return Math.max(30, baseTime + travelTime + priorityAdjustment);
+  },
+
+  // ⏱️ Calcular duração da rota
+  calculateRouteDuration: function(xmls) {
+    const totalDeliveryTime = xmls.reduce((sum, xml, index) => 
+      sum + this.estimateDeliveryTime(xml, index), 0);
+    const setupTime = 30; // Tempo de preparação
+    
+    return totalDeliveryTime + setupTime;
+  },
+
+  // ✅ Aprovar rota
+  approveRoute: function(routeId) {
+    const routeIndex = this.activeRoutes.findIndex(r => r.id === routeId);
+    if (routeIndex === -1) {
+      console.warn('Rota não encontrada para aprovação:', routeId);
+      return;
+    }
+    
+    const route = this.activeRoutes[routeIndex];
+    route.status = 'approved';
+    route.approved_at = new Date().toISOString();
+    
+    console.log(`✅ Rota ${route.code} aprovada automaticamente`);
+    
+    // Criar carregamento consolidado
+    this.createConsolidatedLoading(route);
+  },
+
+  // 🚚 Criar carregamento consolidado
+  createConsolidatedLoading: function(route) {
+    console.log(`🚚 Criando carregamento consolidado para rota ${route.code}`);
+    
+    const consolidatedLoading = {
+      id: Date.now(),
+      type: 'route', // Tipo especial para rotas
+      route_id: route.id,
+      route_code: route.code,
+      route_name: route.name,
+      
+      // Informações consolidadas
+      driver_name: `Rota ${route.code}`,
+      vehicle_plate: 'AGUARDA-DEFINIÇÃO',
+      vehicle_type: route.vehicleRequirement.type,
+      phone_number: '11999999999',
+      
+      // Status e controle
+      status: 'waiting',
+      priority: this.getRoutePriority(route),
+      created_at: new Date().toISOString(),
+      
+      // Dados da rota
+      xmls_count: route.xmls.length,
+      total_deliveries: route.estimatedDeliveries,
+      total_value: route.totalValue,
+      estimated_duration: route.estimatedDuration,
+      utilization_percent: route.vehicleRequirement.utilizationPercent,
+      
+      // Para compatibilidade com sistema atual
+      imported: true,
+      route_loading: true,
+      
+      // Dados detalhados
+      route_data: route,
+      produtos_consolidados: this.consolidateProducts(route.xmls),
+      
+      // Informações para exibição
+      destinatario: `${route.xmls.length} entregas - ${route.region}`,
+      nota_fiscal: route.xmls.map(xml => xml.xmlData.notaFiscal.numero).join(', '),
+      produtos_count: route.xmls.reduce((sum, xml) => sum + xml.xmlData.produtos.length, 0)
+    };
+    
+    // Adicionar à fila de carregamentos
+    if (!LoadingsCore.allLoadings) {
+      LoadingsCore.allLoadings = [];
+    }
+    
+    LoadingsCore.allLoadings.push(consolidatedLoading);
+    
+    // Mover rota para completadas
+    this.completedRoutes.push(route);
+    this.activeRoutes.splice(this.activeRoutes.findIndex(r => r.id === route.id), 1);
+    
+    this.saveToStorage();
+    
+    // Atualizar interface
+    LoadingsCore.displayQueue(LoadingsCore.allLoadings);
+    LoadingsCore.updateStats();
+    
+    Utils.showSuccessMessage(`🚚 Carregamento consolidado criado!<br><strong>Rota:</strong> ${route.code}<br><strong>Entregas:</strong> ${route.estimatedDeliveries}<br><strong>Veículo:</strong> ${route.vehicleRequirement.type}<br><strong>Utilização:</strong> ${route.vehicleRequirement.utilizationPercent}%`);
+    
+    console.log(`✅ Carregamento consolidado criado para rota ${route.code}`);
+  },
+
+  // ⚡ Prioridade da rota
+  getRoutePriority: function(route) {
+    const urgentCount = route.xmls.filter(xml => xml.priority === 'urgent').length;
+    const highCount = route.xmls.filter(xml => xml.priority === 'high').length;
+    
+    if (urgentCount > 0) return 'urgent';
+    if (highCount > route.xmls.length / 2) return 'high';
+    return 'normal';
+  },
+
+  // 📦 Consolidar produtos
+  consolidateProducts: function(xmls) {
+    const consolidated = [];
+    
+    xmls.forEach(xml => {
+      xml.xmlData.produtos.forEach(produto => {
+        const existing = consolidated.find(p => p.codigo === produto.codigo);
+        if (existing) {
+          existing.quantidade += produto.quantidade;
+          existing.valorTotal += produto.valorTotal;
+          existing.nfs.push(xml.xmlData.notaFiscal.numero);
+          existing.xmlIds.push(xml.id);
+        } else {
+          consolidated.push({
+            codigo: produto.codigo,
+            descricao: produto.descricao,
+            quantidade: produto.quantidade,
+            unidade: produto.unidade,
+            valorUnitario: produto.valorUnitario,
+            valorTotal: produto.valorTotal,
+            nfs: [xml.xmlData.notaFiscal.numero],
+            xmlIds: [xml.id]
+          });
+        }
+      });
+    });
+    
+    return consolidated.sort((a, b) => b.valorTotal - a.valorTotal);
+  },
+
+  // ⏰ Configurar roteirização automática
+  setupAutoRouting: function() {
+    // Verificar a cada 2 minutos se há XMLs para roteirizar
+    this.autoRoutingInterval = setInterval(() => {
+      const pendingCount = this.pendingXMLs.filter(xml => xml.status === 'pending').length;
+      if (pendingCount > 0) {
+        console.log(`⏰ Verificação automática: ${pendingCount} XMLs pendentes`);
+        this.tryAutoRouting();
+      }
+    }, 120000); // 2 minutos
+    
+    console.log('⏰ Sistema de roteirização automática ativo (verifica a cada 2 min)');
+  },
+
+  // 📊 Carregar XMLs pendentes
+  loadPendingXMLs: function() {
+    // Carregar dados do localStorage se existirem
+    this.loadStoredData();
+    console.log(`📊 ${this.pendingXMLs.length} XMLs pendentes carregados`);
+  },
+
+  // 💾 Salvar dados no localStorage
+  saveToStorage: function() {
     try {
-      const routeData = {
-        code: document.getElementById('route-code').value.trim(),
-        description: document.getElementById('route-description').value.trim(),
-        priority: document.getElementById('route-priority').value
+      const data = {
+        pendingXMLs: this.pendingXMLs,
+        activeRoutes: this.activeRoutes,
+        completedRoutes: this.completedRoutes,
+        lastUpdate: new Date().toISOString()
       };
-
-      // Validações
-      if (!routeData.code) {
-        throw new Error('Código da rota é obrigatório');
-      }
-
-      if (this.allRoutes.some(r => r.code === routeData.code.toUpperCase())) {
-        throw new Error('Já existe uma rota com este código');
-      }
-
-      // Mostrar loading
-      const saveBtn = document.getElementById('save-route-btn');
-      const saveText = document.getElementById('save-route-text');
-      const saveSpinner = document.getElementById('save-route-spinner');
-      
-      saveBtn.disabled = true;
-      saveText.textContent = 'Criando...';
-      saveSpinner.classList.remove('d-none');
-
-      // Criar rota
-      await this.createRoute(routeData);
-
-      // Fechar modal
-      const modal = bootstrap.Modal.getInstance(document.getElementById('createRouteModal'));
-      modal.hide();
-
-      // Reset form
-      document.getElementById('create-route-form').reset();
-
+      localStorage.setItem('loadings_routing_data', JSON.stringify(data));
     } catch (error) {
-      console.error('❌ Erro ao criar rota:', error);
-      
-      if (typeof Utils !== 'undefined') {
-        Utils.showErrorMessage('❌ ' + error.message);
-      } else {
-        alert('Erro: ' + error.message);
-      }
-    } finally {
-      // Reset botão
-      const saveBtn = document.getElementById('save-route-btn');
-      const saveText = document.getElementById('save-route-text');
-      const saveSpinner = document.getElementById('save-route-spinner');
-      
-      saveBtn.disabled = false;
-      saveText.textContent = 'Criar Rota';
-      saveSpinner.classList.add('d-none');
+      console.warn('Erro ao salvar dados de roteirização:', error);
     }
   },
 
-  // 🔄 Handler para atualizar rota
-  handleUpdateRoute: async function(routeId) {
+  // 📂 Carregar dados do localStorage
+  loadStoredData: function() {
     try {
-      const routeData = {
-        code: document.getElementById('route-code').value.trim(),
-        description: document.getElementById('route-description').value.trim(),
-        priority: document.getElementById('route-priority').value
-      };
-
-      await this.updateRoute(routeId, routeData);
-
-      // Fechar modal
-      const modal = bootstrap.Modal.getInstance(document.getElementById('createRouteModal'));
-      modal.hide();
-
-      // Reset form
-      document.getElementById('create-route-form').reset();
-
+      const data = localStorage.getItem('loadings_routing_data');
+      if (data) {
+        const parsed = JSON.parse(data);
+        this.pendingXMLs = parsed.pendingXMLs || [];
+        this.activeRoutes = parsed.activeRoutes || [];
+        this.completedRoutes = parsed.completedRoutes || [];
+        console.log('📂 Dados de roteirização carregados do storage');
+      }
     } catch (error) {
-      console.error('❌ Erro ao atualizar rota:', error);
-      
-      if (typeof Utils !== 'undefined') {
-        Utils.showErrorMessage('❌ ' + error.message);
-      } else {
-        alert('Erro: ' + error.message);
-      }
+      console.warn('Erro ao carregar dados de roteirização:', error);
+      this.pendingXMLs = [];
+      this.activeRoutes = [];
+      this.completedRoutes = [];
     }
   },
 
-  // 🔄 Refresh das rotas
-  refreshRoutes: async function() {
-    try {
-      console.log('🔄 Atualizando rotas...');
-      
-      if (this.apiAvailable && window.RoutesAPI) {
-        await this.loadRoutesFromAPI();
-      } else {
-        this.loadRoutesLocal();
+  // 🖥️ Interface de roteirização
+  displayRoutingInterface: function() {
+    console.log('🖥️ Exibindo interface de roteirização...');
+    
+    // Esta função seria expandida para mostrar uma interface visual
+    // com XMLs pendentes, rotas em formação, etc.
+    const stats = this.getRoutingStats();
+    console.log('📊 Estatísticas de roteirização:', stats);
+  },
+
+  // 📊 Estatísticas de roteirização
+  getRoutingStats: function() {
+    const pending = this.pendingXMLs.filter(xml => xml.status === 'pending');
+    const totalValue = pending.reduce((sum, xml) => sum + xml.estimatedValue, 0);
+    
+    return {
+      pendingXMLs: pending.length,
+      activeRoutes: this.activeRoutes.length,
+      completedRoutes: this.completedRoutes.length,
+      totalPendingValue: totalValue,
+      regions: this.getRegionStats(pending),
+      priorities: this.getPriorityStats(pending)
+    };
+  },
+
+  // 🏙️ Estatísticas por região
+  getRegionStats: function(xmls) {
+    const regions = {};
+    xmls.forEach(xml => {
+      const region = xml.destination.region;
+      if (!regions[region]) {
+        regions[region] = { count: 0, value: 0 };
       }
-      
-      this.displayRoutes();
-      
-      if (typeof Utils !== 'undefined') {
-        Utils.showSuccessMessage('✅ Rotas atualizadas!');
+      regions[region].count++;
+      regions[region].value += xml.estimatedValue;
+    });
+    return regions;
+  },
+
+  // ⚡ Estatísticas por prioridade
+  getPriorityStats: function(xmls) {
+    const priorities = { urgent: 0, high: 0, normal: 0 };
+    xmls.forEach(xml => {
+      priorities[xml.priority]++;
+    });
+    return priorities;
+  },
+
+  // 🔧 Utilitários
+  utils: {
+    // Forçar criação de rota manual
+    forceCreateRoute: function(xmlIds, routeName) {
+      const xmls = LoadingsRouting.pendingXMLs.filter(xml => xmlIds.includes(xml.id));
+      if (xmls.length > 0) {
+        LoadingsRouting.createManualRoute(routeName || 'Rota Manual', xmls);
       }
+    },
+    
+    // Cancelar rota
+    cancelRoute: function(routeId) {
+      const routeIndex = LoadingsRouting.activeRoutes.findIndex(r => r.id === routeId);
+      if (routeIndex !== -1) {
+        const route = LoadingsRouting.activeRoutes[routeIndex];
+        
+        // Devolver XMLs para lista pendente
+        route.xmls.forEach(xml => {
+          const xmlIndex = LoadingsRouting.pendingXMLs.findIndex(p => p.id === xml.id);
+          if (xmlIndex !== -1) {
+            LoadingsRouting.pendingXMLs[xmlIndex].status = 'pending';
+            delete LoadingsRouting.pendingXMLs[xmlIndex].route_id;
+          }
+        });
+        
+        LoadingsRouting.activeRoutes.splice(routeIndex, 1);
+        LoadingsRouting.saveToStorage();
+        Utils.showSuccessMessage(`Rota ${route.code} cancelada`);
+      }
+    },
+    
+    // Limpar dados antigos
+    cleanOldData: function(daysOld = 7) {
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - daysOld);
       
-    } catch (error) {
-      console.error('❌ Erro ao atualizar rotas:', error);
+      const initialCount = LoadingsRouting.completedRoutes.length;
+      LoadingsRouting.completedRoutes = LoadingsRouting.completedRoutes.filter(route => 
+        new Date(route.created_at) > cutoffDate
+      );
       
-      if (typeof Utils !== 'undefined') {
-        Utils.showErrorMessage('❌ Erro ao atualizar rotas');
+      const removed = initialCount - LoadingsRouting.completedRoutes.length;
+      if (removed > 0) {
+        LoadingsRouting.saveToStorage();
+        console.log(`🧹 ${removed} rotas antigas removidas`);
       }
     }
-  },
-
-  // 🔧 MÉTODOS AUXILIARES
-
-  generateRouteId: function() {
-    return 'RT-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
-  },
-
-  extractRegion: function(description) {
-    const regionPatterns = [
-      /centro/i,
-      /zona sul/i,
-      /zona norte/i,
-      /zona leste/i,
-      /zona oeste/i,
-      /ABC/i
-    ];
-    
-    for (const pattern of regionPatterns) {
-      if (pattern.test(description)) {
-        return description.match(pattern)[0];
-      }
-    }
-    
-    return 'Geral';
-  },
-
-  extractCity: function(description) {
-    const cityPatterns = [
-      /São Paulo/i,
-      /Rio de Janeiro/i,
-      /Belo Horizonte/i,
-      /Salvador/i,
-      /Brasília/i,
-      /Curitiba/i,
-      /Porto Alegre/i
-    ];
-    
-    for (const pattern of cityPatterns) {
-      if (pattern.test(description)) {
-        return description.match(pattern)[0];
-      }
-    }
-    
-    return 'Não especificada';
-  },
-
-  extractState: function(code) {
-    const statePattern = /^([A-Z]{2})/;
-    const match = code.match(statePattern);
-    return match ? match[1] : 'SP';
   }
 };
 
 // 🌐 Expor globalmente
-window.LoadingsRoutes = LoadingsRoutes;
+window.LoadingsRouting = LoadingsRouting;
+
+// 🔧 Debug - verificar se foi carregado corretamente
+console.log('🗺️ LoadingsRouting carregado e exposto globalmente:', typeof window.LoadingsRouting);
