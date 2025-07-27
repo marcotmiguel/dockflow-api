@@ -3,7 +3,7 @@
 // Configuração da aplicação
 const app = {
   currentPage: '',
-  API_URL: 'http://localhost:8080/api',
+API_URL: window.API_URL || 'http://localhost:3000/api',
   
   // Inicializar a aplicação
   init: function() {

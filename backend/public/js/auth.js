@@ -1,7 +1,7 @@
 // js/auth.js
 
 // Configuração do sistema
-const API_URL = 'http://localhost:8080/api';
+const API_URL = window.API_URL || 'http://localhost:3000/api';
 
 // Objeto para gerenciar a autenticação
 const Auth = {
