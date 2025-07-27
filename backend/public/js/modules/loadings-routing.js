@@ -240,7 +240,8 @@ const LoadingsRouting = {
       console.log(`🏙️ Região ${region}: ${xmls.length} XMLs (min: ${minXMLs})`);
       
       if (xmls.length >= minXMLs) {
-        this.createAutomaticRoute(region, xmls);
+        // ⚠️ AQUI FOI A MUDANÇA PRINCIPAL - Em vez de criar direto, mostra para aprovação
+        this.showRouteApprovalDialog(region, xmls);
       } else {
         console.log(`⏳ Aguardando mais XMLs para região ${region}`);
       }
@@ -278,9 +279,185 @@ const LoadingsRouting = {
     }
   },
 
-  // ✨ Criar rota automática
+  // 📋 NOVA FUNÇÃO - Mostrar tela de aprovação
+  showRouteApprovalDialog: function(region, xmls) {
+    console.log(`📋 Mostrando tela de aprovação para rota ${region} com ${xmls.length} XMLs`);
+    
+    // Remover modal existente se houver
+    const existingModal = document.getElementById('route-approval-modal');
+    if (existingModal) {
+      existingModal.remove();
+    }
+    
+    // Criar o modal de aprovação
+    const modal = document.createElement('div');
+    modal.id = 'route-approval-modal';
+    modal.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      z-index: 10000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    `;
+    
+    // Calcular totais
+    const totalValue = xmls.reduce((sum, xml) => sum + xml.estimatedValue, 0);
+    const totalProducts = xmls.reduce((sum, xml) => sum + xml.xmlData.produtos.length, 0);
+    
+    // Conteúdo do modal
+    modal.innerHTML = `
+      <div style="
+        background: white;
+        border-radius: 15px;
+        max-width: 80%;
+        max-height: 80%;
+        overflow-y: auto;
+        padding: 25px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+      ">
+        <div style="text-align: center; margin-bottom: 20px;">
+          <h2 style="color: #2196F3; margin: 0;">🚚 Aprovação de Rota</h2>
+          <p style="color: #666; margin: 5px 0;">Região: <strong>${region}</strong></p>
+          <p style="color: #666; margin: 0;">
+            📦 <strong>${xmls.length}</strong> entregas | 
+            💰 <strong>R$ ${totalValue.toLocaleString('pt-BR')}</strong> | 
+            📋 <strong>${totalProducts}</strong> produtos
+          </p>
+        </div>
+        
+        <div style="
+          max-height: 400px;
+          overflow-y: auto;
+          border: 1px solid #ddd;
+          border-radius: 8px;
+          margin-bottom: 20px;
+        ">
+          <table style="width: 100%; border-collapse: collapse;">
+            <thead style="background: #f5f5f5; position: sticky; top: 0;">
+              <tr>
+                <th style="padding: 12px; text-align: left; border-bottom: 1px solid #ddd;">NF</th>
+                <th style="padding: 12px; text-align: left; border-bottom: 1px solid #ddd;">Destinatário</th>
+                <th style="padding: 12px; text-align: left; border-bottom: 1px solid #ddd;">Endereço</th>
+                <th style="padding: 12px; text-align: left; border-bottom: 1px solid #ddd;">Valor</th>
+                <th style="padding: 12px; text-align: left; border-bottom: 1px solid #ddd;">Prioridade</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${xmls.map(xml => `
+                <tr style="border-bottom: 1px solid #eee;">
+                  <td style="padding: 10px; font-weight: bold; color: #2196F3;">${xml.xmlData.notaFiscal.numero}</td>
+                  <td style="padding: 10px;">
+                    <div style="font-weight: bold;">${xml.xmlData.destinatario.nome}</div>
+                    <div style="font-size: 11px; color: #666;">CNPJ: ${xml.xmlData.destinatario.cnpj}</div>
+                  </td>
+                  <td style="padding: 10px; max-width: 200px;">
+                    <div style="font-size: 12px; line-height: 1.3;">
+                      ${xml.destination.fullAddress}
+                    </div>
+                    <div style="font-size: 11px; color: #666; margin-top: 3px;">
+                      📍 ${xml.destination.city}/${xml.destination.uf}
+                      ${xml.destination.zipCode ? ` • CEP: ${xml.destination.zipCode}` : ''}
+                    </div>
+                  </td>
+                  <td style="padding: 10px; text-align: right;">
+                    <div style="font-weight: bold; color: #4CAF50;">
+                      R$ ${xml.estimatedValue.toLocaleString('pt-BR')}
+                    </div>
+                    <div style="font-size: 11px; color: #666;">
+                      ${xml.xmlData.produtos.length} produtos
+                    </div>
+                  </td>
+                  <td style="padding: 10px; text-align: center;">
+                    <span style="
+                      padding: 4px 8px;
+                      border-radius: 12px;
+                      font-size: 11px;
+                      font-weight: bold;
+                      background: ${xml.priority === 'urgent' ? '#ffebee' : xml.priority === 'high' ? '#fff3e0' : '#f1f8e9'};
+                      color: ${xml.priority === 'urgent' ? '#c62828' : xml.priority === 'high' ? '#ef6c00' : '#388e3c'};
+                    ">
+                      ${xml.priority === 'urgent' ? '🔴 URGENTE' : xml.priority === 'high' ? '🟡 ALTA' : '🟢 NORMAL'}
+                    </span>
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+        
+        <div style="text-align: center;">
+          <button id="approve-route-btn" style="
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-right: 10px;
+            transition: background 0.3s;
+          " onmouseover="this.style.background='#45a049'" onmouseout="this.style.background='#4CAF50'">
+            ✅ Aprovar e Criar Rota
+          </button>
+          
+          <button id="cancel-route-btn" style="
+            background: #f44336;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.3s;
+          " onmouseover="this.style.background='#da190b'" onmouseout="this.style.background='#f44336'">
+            ❌ Cancelar
+          </button>
+        </div>
+      </div>
+    `;
+    
+    // Adicionar ao body
+    document.body.appendChild(modal);
+    
+    // Event listeners dos botões
+    document.getElementById('approve-route-btn').addEventListener('click', () => {
+      this.approveAndCreateRoute(region, xmls);
+      modal.remove();
+    });
+    
+    document.getElementById('cancel-route-btn').addEventListener('click', () => {
+      console.log('❌ Criação de rota cancelada pelo usuário');
+      modal.remove();
+    });
+    
+    // Fechar com ESC
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape' && document.getElementById('route-approval-modal')) {
+        document.getElementById('route-approval-modal').remove();
+      }
+    });
+    
+    console.log('📋 Tela de aprovação exibida');
+  },
+
+  // ✅ NOVA FUNÇÃO - Aprovar e criar rota (só executa após aprovação)
+  approveAndCreateRoute: function(region, xmls) {
+    console.log(`✅ Rota aprovada pelo usuário! Criando rota para ${region} com ${xmls.length} XMLs`);
+    
+    // Agora executa a criação que antes era automática
+    this.createAutomaticRoute(region, xmls);
+  },
+
+  // ✨ Criar rota automática (modificada para ser executada só após aprovação)
   createAutomaticRoute: function(region, xmls) {
-    console.log(`✨ Criando rota automática para ${region} com ${xmls.length} XMLs`);
+    console.log(`✨ Criando rota aprovada para ${region} com ${xmls.length} XMLs`);
     
     // Ordenar por prioridade e valor
     xmls.sort((a, b) => {
@@ -296,17 +473,18 @@ const LoadingsRouting = {
     const route = {
       id: Date.now(),
       code: routeCode,
-      name: `Rota Automática - ${region}`,
+      name: `Rota Aprovada - ${region}`,
       region: region,
       xmls: xmls,
-      status: 'pending', // pending, approved, loading, completed
+      status: 'approved', // Já aprovada pelo usuário
       created_at: new Date().toISOString(),
+      approved_at: new Date().toISOString(), // Marcando como aprovada agora
       estimatedDeliveries: xmls.length,
       totalValue: xmls.reduce((sum, xml) => sum + xml.estimatedValue, 0),
       vehicleRequirement: this.determineRouteVehicleRequirement(xmls),
       deliverySequence: this.optimizeDeliverySequence(xmls),
       estimatedDuration: this.calculateRouteDuration(xmls),
-      createdBy: 'Sistema Automático'
+      createdBy: 'Sistema Aprovado'
     };
     
     this.activeRoutes.push(route);
@@ -323,12 +501,11 @@ const LoadingsRouting = {
     this.saveToStorage();
     
     // Notificar usuário
-    Utils.showSuccessMessage(`🗺️ Rota automática criada: ${route.code}<br>📦 ${route.estimatedDeliveries} entregas<br>💰 R$ ${route.totalValue.toLocaleString('pt-BR')}<br>🚛 Veículo: ${route.vehicleRequirement.type}`);
+    Utils.showSuccessMessage(`🗺️ Rota criada e aprovada: ${route.code}<br>📦 ${route.estimatedDeliveries} entregas<br>💰 R$ ${route.totalValue.toLocaleString('pt-BR')}<br>🚛 Veículo: ${route.vehicleRequirement.type}`);
     
-    // Auto-aprovar rotas automáticas após 5 segundos
-    setTimeout(() => {
-      this.approveRoute(route.id);
-    }, 5000);
+    // Criar carregamento imediatamente pois já foi aprovada
+    console.log(`✅ Rota ${route.code} aprovada automaticamente`);
+    this.createConsolidatedLoading(route);
   },
 
   // 🏷️ Gerar código da rota
