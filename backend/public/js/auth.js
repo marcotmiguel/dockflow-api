@@ -1,31 +1,22 @@
-// js/auth.js - Sistema de Autenticação DockFlow (Railway Compatible)
+// js/auth.js - Sistema de Autenticação DockFlow (Compatible with config.js)
 
-// 🔧 Configuração dinâmica da API baseada no ambiente
-const getApiUrl = () => {
-  // Se window.API_URL foi definido no HTML, usar ele
+// 🔧 Usar API_URL do config.js (compatibilidade total)
+const getAPIUrl = () => {
+  // Primeiro: verificar se config.js definiu window.API_URL
   if (window.API_URL) {
     return window.API_URL;
   }
   
-  // Detectar ambiente automaticamente
-  const hostname = window.location.hostname;
-  const origin = window.location.origin;
-  
-  // Railway production
-  if (hostname.includes('railway.app')) {
-    return origin + '/api';
+  // Segundo: verificar se config global existe
+  if (typeof window.config !== 'undefined' && window.config.API_URL) {
+    return window.config.API_URL;
   }
   
-  // Desenvolvimento local
-  if (hostname === 'localhost' || hostname === '127.0.0.1') {
-    return origin + '/api';
-  }
-  
-  // Fallback para outros ambientes
-  return origin + '/api';
+  // Fallback: construir dinamicamente
+  return window.location.origin + '/api';
 };
 
-const API_URL = getApiUrl();
+const API_URL = getAPIUrl();
 
 // Log apenas em desenvolvimento
 if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {

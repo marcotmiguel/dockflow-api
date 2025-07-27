@@ -487,8 +487,8 @@ app.get('/', (req, res) => {
   });
 });
 
-// 🏥 Health check endpoint
-app.get('/health', (req, res) => {
+// 🏥 Health check endpoint - ADICIONAR esta rota no seu server.js
+app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
@@ -496,7 +496,8 @@ app.get('/health', (req, res) => {
     database: 'connected',
     environment: NODE_ENV,
     memory: process.memoryUsage(),
-    version: '2.1'
+    version: '2.1',
+    message: 'DockFlow API funcionando perfeitamente!'
   });
 });
 
