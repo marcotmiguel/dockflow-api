@@ -378,13 +378,12 @@ router.delete('/:id', (req, res) => {
   const { id } = req.params;
   
   // Verificar se rota existe e se tem carregamentos associados
-  const checkQuery = `
-    SELECT r.*, COUNT(l.id) as loadings_associated 
-    FROM routes r 
-    LEFT JOIN loadings l ON l.route_id = r.id 
-    WHERE r.id = ? 
-    GROUP BY r.id
-  `;
+ const checkQuery = `
+  SELECT r.*, COUNT(r.id) as loadings_associated
+  FROM routes r  
+  WHERE r.id = ?
+  GROUP BY r.id
+`;
   
   db.query(checkQuery, [id], (err, results) => {
     if (err) {
