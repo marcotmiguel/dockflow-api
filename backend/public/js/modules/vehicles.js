@@ -89,8 +89,20 @@ const Vehicles = {
   loadVehiclesList: async function() {
     try {
       const vehiclesResponse = await Auth.fetchAuth(`${app.API_URL}/vehicles`);
-      this.displayVehiclesList(vehiclesResponse);
-      this.allVehicles = vehiclesResponse;
+      
+      // 🔧 CORREÇÃO: Verificar estrutura da resposta
+      let vehicles = [];
+      if (vehiclesResponse && vehiclesResponse.data && Array.isArray(vehiclesResponse.data)) {
+        vehicles = vehiclesResponse.data;
+      } else if (Array.isArray(vehiclesResponse)) {
+        vehicles = vehiclesResponse;
+      } else {
+        console.warn('Resposta da API de veículos não é um array:', vehiclesResponse);
+        vehicles = [];
+      }
+      
+      this.displayVehiclesList(vehicles);
+      this.allVehicles = vehicles;
     } catch (error) {
       console.error('Erro ao carregar veículos:', error);
       this.showVehiclesError('Erro ao carregar lista de veículos');
@@ -101,6 +113,12 @@ const Vehicles = {
   displayVehiclesList: function(vehicles) {
     const tbody = document.getElementById('vehicles-list');
     if (!tbody) return;
+    
+    // 🔧 CORREÇÃO: Verificar se vehicles é array
+    if (!Array.isArray(vehicles)) {
+      console.warn('displayVehiclesList: vehicles não é um array:', vehicles);
+      vehicles = [];
+    }
     
     if (vehicles.length === 0) {
       tbody.innerHTML = `
@@ -115,12 +133,6 @@ const Vehicles = {
         </tr>
       `;
       return;
-    }
-    
-          // Antes de usar vehicles.forEach, adicione:
-    if (!Array.isArray(vehicles)) {
-    console.warn('Vehicles não é um array:', vehicles);
-    vehicles = [];
     }
 
     let html = '';
@@ -203,7 +215,7 @@ const Vehicles = {
 
   // Pesquisar veículos
   searchVehicles: function(searchTerm) {
-    if (!this.allVehicles) return;
+    if (!this.allVehicles || !Array.isArray(this.allVehicles)) return;
     
     const filteredVehicles = this.allVehicles.filter(vehicle => 
       vehicle.license_plate.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -217,7 +229,7 @@ const Vehicles = {
 
   // Filtrar veículos por status
   filterVehiclesByStatus: function(status) {
-    if (!this.allVehicles) return;
+    if (!this.allVehicles || !Array.isArray(this.allVehicles)) return;
     
     let filteredVehicles = this.allVehicles;
     if (status) {
@@ -230,7 +242,10 @@ const Vehicles = {
   // Visualizar veículo
   viewVehicle: async function(vehicleId) {
     try {
-      const vehicle = await Auth.fetchAuth(`${app.API_URL}/vehicles/${vehicleId}`);
+      const vehicleResponse = await Auth.fetchAuth(`${app.API_URL}/vehicles/${vehicleId}`);
+      
+      // Extrair dados da resposta
+      const vehicle = vehicleResponse.data || vehicleResponse;
       
       document.getElementById('view-vehicle-plate').textContent = vehicle.license_plate;
       document.getElementById('view-vehicle-type').textContent = vehicle.vehicle_type;
@@ -261,7 +276,17 @@ const Vehicles = {
   // Carregar carregamentos do veículo
   loadVehicleLoadings: async function(vehicleId) {
     try {
-      const loadings = await Auth.fetchAuth(`${app.API_URL}/vehicles/${vehicleId}/loadings`);
+      const loadingsResponse = await Auth.fetchAuth(`${app.API_URL}/vehicles/${vehicleId}/loadings`);
+      
+      // Verificar estrutura da resposta
+      let loadings = [];
+      if (loadingsResponse && loadingsResponse.data && Array.isArray(loadingsResponse.data)) {
+        loadings = loadingsResponse.data;
+      } else if (Array.isArray(loadingsResponse)) {
+        loadings = loadingsResponse;
+      } else {
+        loadings = [];
+      }
       
       const totalLoadings = loadings.length;
       const completedLoadings = loadings.filter(l => l.status === 'completed').length;
@@ -308,7 +333,8 @@ const Vehicles = {
   // Editar veículo
   editVehicle: async function(vehicleId) {
     try {
-      const vehicle = await Auth.fetchAuth(`${app.API_URL}/vehicles/${vehicleId}`);
+      const vehicleResponse = await Auth.fetchAuth(`${app.API_URL}/vehicles/${vehicleId}`);
+      const vehicle = vehicleResponse.data || vehicleResponse;
       
       document.getElementById('vehicle-id').value = vehicle.id;
       document.getElementById('license-plate').value = vehicle.license_plate;
@@ -345,16 +371,17 @@ const Vehicles = {
     }
     
     const vehicleId = activeModal.querySelector('#vehicle-id').value;
-    const licensePlate = activeModal.querySelector('#license-plate').value.trim().toUpperCase();
+    const licensePlateInput = activeModal.querySelector('#license-plate');
+    const licensePlate = licensePlateInput ? licensePlateInput.value.trim().toUpperCase() : '';
     
-    // Validar placa
-    if (!Utils.validateLicensePlate(licensePlate)) {
-      Utils.showErrorMessage('Formato de placa inválido. Use o formato ABC-1234 ou ABC1D23');
+    // Validar placa básica
+    if (!licensePlate) {
+      Utils.showErrorMessage('Placa é obrigatória');
       return;
     }
     
     const vehicleData = {
-      license_plate: Utils.formatLicensePlate(licensePlate),
+      license_plate: licensePlate,
       vehicle_type: activeModal.querySelector('#vehicle-type').value,
       brand: activeModal.querySelector('#vehicle-brand').value.trim() || null,
       model: activeModal.querySelector('#vehicle-model').value.trim() || null,
@@ -512,7 +539,7 @@ const Vehicles = {
 
   // Exportar veículos
   exportVehicles: function() {
-    if (!this.allVehicles || this.allVehicles.length === 0) {
+    if (!this.allVehicles || !Array.isArray(this.allVehicles) || this.allVehicles.length === 0) {
       Utils.showWarningMessage('Não há veículos para exportar');
       return;
     }
