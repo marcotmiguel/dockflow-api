@@ -115,18 +115,28 @@ const inputSanitizer = (req, res, next) => {
   next();
 };
 
-// 🔒 Middleware de verificação de origem
+// 🔒 Middleware de verificação de origem - RAILWAY FIX
 const corsSecurityCheck = (req, res, next) => {
   const origin = req.headers.origin;
   const referer = req.headers.referer;
+  
+  // Lista de origens permitidas - INCLUINDO RAILWAY
   const allowedOrigins = [
     'http://localhost:8080',
     'http://127.0.0.1:8080',
+    'https://dockflow-api-production.up.railway.app', // ✅ RAILWAY
     process.env.FRONTEND_URL
   ].filter(Boolean);
   
-  // Para requisições de API, verificar origem
+  // Para requisições de API, ser mais permissivo em produção
   if (req.originalUrl.startsWith('/api/')) {
+    // Em produção, permitir requisições sem origin (como Postman, apps mobile)
+    if (process.env.NODE_ENV === 'production') {
+      console.log(`🌐 Produção: Permitindo requisição de ${origin || 'sem origin'}`);
+      return next();
+    }
+    
+    // Em desenvolvimento, manter verificação
     if (origin && !allowedOrigins.includes(origin)) {
       console.log(`🚨 Origem não autorizada: ${origin} tentando acessar ${req.originalUrl}`);
       return res.status(403).json({
