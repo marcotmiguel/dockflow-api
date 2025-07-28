@@ -246,8 +246,7 @@ const loadRoutes = () => {
   });
 };
 
-// 🔧 Handlers de erro (devem vir por último)
-applyErrorHandlers(app);
+
 
 // 🚀 Iniciar o servidor
 const startServer = () => {
@@ -284,4 +283,6 @@ const startServer = () => {
 // 🚀 Inicializar tudo
 initializeDatabase();
 loadRoutes();
+// 🔧 Handlers de erro (devem vir por último)
+applyErrorHandlers(app);
 startServer();
