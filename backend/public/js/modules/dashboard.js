@@ -161,30 +161,50 @@ const Dashboard = {
   loadDashboardStats: async function() {
     try {
       // Estatísticas de carregamentos do dia
-      let loadingsResponse = [];
+      let loadingsData = [];
       try {
-        loadingsResponse = await Auth.fetchAuth(`${app.API_URL}/loadings/today`) || [];
+        const loadingsResponse = await Auth.fetchAuth(`${app.API_URL}/loadings/today`);
+        // 🔧 CORREÇÃO: Verificar estrutura da resposta
+        if (loadingsResponse && loadingsResponse.data && Array.isArray(loadingsResponse.data)) {
+          loadingsData = loadingsResponse.data;
+        } else if (Array.isArray(loadingsResponse)) {
+          loadingsData = loadingsResponse;
+        } else {
+          console.warn('Resposta de loadings não é um array:', loadingsResponse);
+          loadingsData = [];
+        }
       } catch (error) {
         console.warn('Erro ao carregar carregamentos do dia, usando dados vazios:', error);
+        loadingsData = [];
       }
       
       // Estatísticas de docas
-      let docksResponse = [];
+      let docksData = [];
       try {
-        docksResponse = await Auth.fetchAuth(`${app.API_URL}/docks`) || [];
+        const docksResponse = await Auth.fetchAuth(`${app.API_URL}/docks`);
+        // 🔧 CORREÇÃO: Verificar estrutura da resposta
+        if (docksResponse && docksResponse.data && Array.isArray(docksResponse.data)) {
+          docksData = docksResponse.data;
+        } else if (Array.isArray(docksResponse)) {
+          docksData = docksResponse;
+        } else {
+          console.warn('Resposta de docas não é um array:', docksResponse);
+          docksData = [];
+        }
       } catch (error) {
         console.warn('Erro ao carregar docas, usando dados vazios:', error);
+        docksData = [];
       }
       
-      // Usar valores padrão se as respostas estiverem vazias
-      const totalLoadings = Array.isArray(loadingsResponse) ? loadingsResponse.length : 0;
-      const completedLoadings = Array.isArray(loadingsResponse) ? loadingsResponse.filter(loading => loading.status === 'completed').length : 0;
-      const inProgressLoadings = Array.isArray(loadingsResponse) ? loadingsResponse.filter(loading => loading.status === 'in_progress').length : 0;
-      const scheduledLoadings = Array.isArray(loadingsResponse) ? loadingsResponse.filter(loading => loading.status === 'scheduled').length : 0;
+      // Calcular estatísticas com dados seguros
+      const totalLoadings = loadingsData.length;
+      const completedLoadings = loadingsData.filter(loading => loading.status === 'completed').length;
+      const inProgressLoadings = loadingsData.filter(loading => loading.status === 'in_progress').length;
+      const scheduledLoadings = loadingsData.filter(loading => loading.status === 'scheduled').length;
       
-      const totalDocks = Array.isArray(docksResponse) ? docksResponse.length : 0;
-      const availableDocks = Array.isArray(docksResponse) ? docksResponse.filter(dock => dock.status === 'available').length : 0;
-      const occupiedDocks = Array.isArray(docksResponse) ? docksResponse.filter(dock => dock.status === 'occupied').length : 0;
+      const totalDocks = docksData.length;
+      const availableDocks = docksData.filter(dock => dock.status === 'available').length;
+      const occupiedDocks = docksData.filter(dock => dock.status === 'occupied').length;
       
       // Atualizar elementos do dashboard
       this.updateElement('total-loadings', totalLoadings);
@@ -238,14 +258,25 @@ const Dashboard = {
       
       if (!docksContainer) return;
       
-      if (docksResponse.length === 0) {
-        docksContainer.innerHTML = '<p class="text-center text-muted">Nenhuma doca cadastrada.</p>';
+      // 🔧 CORREÇÃO: Verificar estrutura da resposta e converter para array
+      let docksData = [];
+      if (docksResponse && docksResponse.data && Array.isArray(docksResponse.data)) {
+        docksData = docksResponse.data;
+      } else if (Array.isArray(docksResponse)) {
+        docksData = docksResponse;
+      } else {
+        console.warn('Resposta de docas ativas não é um array:', docksResponse);
+        docksData = [];
+      }
+      
+      if (docksData.length === 0) {
+        docksContainer.innerHTML = '<div class="col-12"><p class="text-center text-muted">Nenhuma doca cadastrada.</p></div>';
         return;
       }
       
       let html = '';
       
-      docksResponse.forEach(dock => {
+      docksData.forEach(dock => {
         const statusClass = dock.status === 'available' ? 'success' : dock.status === 'occupied' ? 'warning' : 'danger';
         const statusText = dock.status === 'available' ? 'Disponível' : dock.status === 'occupied' ? 'Ocupada' : 'Manutenção';
         
@@ -287,6 +318,10 @@ const Dashboard = {
       
     } catch (error) {
       console.error('Erro ao carregar docas ativas:', error);
+      const docksContainer = document.getElementById('active-docks');
+      if (docksContainer) {
+        docksContainer.innerHTML = '<div class="col-12"><p class="text-center text-muted">Erro ao carregar docas. Tente recarregar a página.</p></div>';
+      }
     }
   },
 
@@ -300,8 +335,8 @@ const Dashboard = {
     const newStatus = currentStatus === 'available' ? 'maintenance' : 'available';
     
     try {
-      await Auth.fetchAuth(`${app.API_URL}/docks/${dockId}/status`, {
-        method: 'PATCH',
+      await Auth.fetchAuth(`${app.API_URL}/docks/${dockId}`, {
+        method: 'PUT',
         body: JSON.stringify({ status: newStatus })
       });
       
@@ -326,7 +361,18 @@ const Dashboard = {
       
       if (!loadingsContainer) return;
       
-      if (loadingsResponse.length === 0) {
+      // 🔧 CORREÇÃO: Verificar estrutura da resposta e converter para array
+      let loadingsData = [];
+      if (loadingsResponse && loadingsResponse.data && Array.isArray(loadingsResponse.data)) {
+        loadingsData = loadingsResponse.data;
+      } else if (Array.isArray(loadingsResponse)) {
+        loadingsData = loadingsResponse;
+      } else {
+        console.warn('Resposta de carregamentos de hoje não é um array:', loadingsResponse);
+        loadingsData = [];
+      }
+      
+      if (loadingsData.length === 0) {
         loadingsContainer.innerHTML = '<p class="text-center text-muted">Nenhum carregamento agendado para hoje.</p>';
         return;
       }
@@ -346,8 +392,8 @@ const Dashboard = {
             <tbody>
       `;
       
-      loadingsResponse.forEach(loading => {
-        const scheduledTime = Utils.formatTime(loading.scheduled_time);
+      loadingsData.forEach(loading => {
+        const scheduledTime = loading.scheduled_time ? Utils.formatTime(loading.scheduled_time) : '--';
         const statusClass = loading.status === 'scheduled' ? 'info' : loading.status === 'in_progress' ? 'warning' : loading.status === 'completed' ? 'success' : 'danger';
         const statusText = loading.status === 'scheduled' ? 'Agendado' : loading.status === 'in_progress' ? 'Em Andamento' : loading.status === 'completed' ? 'Concluído' : 'Cancelado';
         
@@ -391,6 +437,10 @@ const Dashboard = {
       
     } catch (error) {
       console.error('Erro ao carregar carregamentos do dia:', error);
+      const loadingsContainer = document.getElementById('today-loadings');
+      if (loadingsContainer) {
+        loadingsContainer.innerHTML = '<p class="text-center text-muted">Erro ao carregar carregamentos. Tente recarregar a página.</p>';
+      }
     }
   },
 
@@ -399,7 +449,11 @@ const Dashboard = {
     document.querySelectorAll('.view-loading-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
         const loadingId = btn.getAttribute('data-id');
-        app.viewLoading(loadingId);
+        if (typeof app !== 'undefined' && app.viewLoading) {
+          app.viewLoading(loadingId);
+        } else {
+          console.warn('Função app.viewLoading não encontrada');
+        }
       });
     });
     
@@ -423,7 +477,18 @@ const Dashboard = {
     try {
       // Obter docas disponíveis
       const docksResponse = await Auth.fetchAuth(`${app.API_URL}/docks`);
-      const availableDocks = docksResponse.filter(dock => dock.status === 'available');
+      
+      // Verificar estrutura da resposta
+      let docksData = [];
+      if (docksResponse && docksResponse.data && Array.isArray(docksResponse.data)) {
+        docksData = docksResponse.data;
+      } else if (Array.isArray(docksResponse)) {
+        docksData = docksResponse;
+      } else {
+        docksData = [];
+      }
+      
+      const availableDocks = docksData.filter(dock => dock.status === 'available');
       
       if (availableDocks.length === 0) {
         Utils.showWarningMessage('Não há docas disponíveis para check-in.');

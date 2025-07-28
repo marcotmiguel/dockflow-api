@@ -1,7 +1,7 @@
 // backend/routes/driverRoutes.js
 const express = require('express');
 const router = express.Router();
-const db = require('../database');
+const { db } = require('../config/database');
 
 // Middleware de autenticação
 const { authMiddleware } = require('../middleware/authMiddleware');
