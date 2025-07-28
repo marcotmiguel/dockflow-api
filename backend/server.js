@@ -312,6 +312,26 @@ app.get('/api/test-auth', (req, res) => {
   });
 });
 
+// 🧪 GET vehicles sem auth para teste
+app.get('/api/vehicles-frontend-test', (req, res) => {
+  const { db } = require('./config/database');
+  
+  db.query('SELECT * FROM vehicles ORDER BY license_plate', (err, results) => {
+    if (err) {
+      return res.status(500).json({
+        success: false,
+        error: err.message
+      });
+    }
+    
+    // Retornar no formato que o frontend espera
+    res.json({
+      success: true,
+      data: results || []
+    });
+  });
+});
+
 // 📡 Importar e registrar rotas modulares
 const loadRoutes = () => {
   const routes = [

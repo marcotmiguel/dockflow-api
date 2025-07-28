@@ -117,6 +117,12 @@ const Vehicles = {
       return;
     }
     
+          // Antes de usar vehicles.forEach, adicione:
+    if (!Array.isArray(vehicles)) {
+    console.warn('Vehicles não é um array:', vehicles);
+    vehicles = [];
+    }
+
     let html = '';
     vehicles.forEach((vehicle, index) => {
       const statusClass = vehicle.status === 'available' ? 'success' : vehicle.status === 'in_use' ? 'warning' : 'danger';
