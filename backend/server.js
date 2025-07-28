@@ -113,6 +113,65 @@ app.get('/api/health', (req, res) => {
 // 🔐 Rota de autenticação
 app.post('/api/auth/login', login);
 
+// 🧪 ENDPOINT DE DIAGNÓSTICO TEMPORÁRIO
+app.get('/api/debug', (req, res) => {
+  const results = [];
+  
+  results.push('🔍 DIAGNÓSTICO DE ROTAS:');
+  
+  // Testar database antigo
+  try {
+    const pool = require('./database');
+    results.push('✅ ./database: OK - ' + typeof pool);
+  } catch (e) {
+    results.push('❌ ./database: ERRO - ' + e.message);
+  }
+  
+  // Testar database novo
+  try {
+    const { db } = require('./config/database');
+    results.push('✅ ./config/database: OK - ' + typeof db);
+  } catch (e) {
+    results.push('❌ ./config/database: ERRO - ' + e.message);
+  }
+  
+  // Testar database/index.js
+  try {
+    const pool = require('./database/index');
+    results.push('✅ ./database/index: OK - ' + typeof pool);
+    results.push('🔍 Tem método execute? ' + (typeof pool.execute));
+  } catch (e) {
+    results.push('❌ ./database/index: ERRO - ' + e.message);
+  }
+  
+  // Testar dockRoutes
+  try {
+    const dockRoutes = require('./routes/dockRoutes');
+    results.push('✅ dockRoutes: OK - ' + typeof dockRoutes);
+    results.push('🔍 É router? ' + (typeof dockRoutes.use === 'function'));
+    results.push('🔍 Tem stack? ' + Array.isArray(dockRoutes.stack));
+    results.push('🔍 Rotas: ' + (dockRoutes.stack?.length || 'N/A'));
+  } catch (e) {
+    results.push('❌ dockRoutes: ERRO - ' + e.message);
+  }
+  
+  // Testar loadingRoutes
+  try {
+    const loadingRoutes = require('./routes/loadingRoutes');
+    results.push('✅ loadingRoutes: OK - ' + typeof loadingRoutes);
+    results.push('🔍 É router? ' + (typeof loadingRoutes.use === 'function'));
+    results.push('🔍 Tem stack? ' + Array.isArray(loadingRoutes.stack));
+    results.push('🔍 Rotas: ' + (loadingRoutes.stack?.length || 'N/A'));
+  } catch (e) {
+    results.push('❌ loadingRoutes: ERRO - ' + e.message);
+  }
+  
+  res.json({
+    diagnostic: results,
+    timestamp: new Date().toISOString()
+  });
+});
+
 // 📡 Importar e registrar rotas modulares
 const loadRoutes = () => {
   const routes = [
