@@ -1,3 +1,5 @@
+// Versão atualizada - 28/07/2025
+
 // backend/routes/vehicleRoutes.js
 const express = require('express');
 const router = express.Router();
