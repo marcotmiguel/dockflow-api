@@ -37,6 +37,21 @@ const corsOptions = {
   optionsSuccessStatus: 200
 };
 
+// CORS manual para Railway - DEVE VIR ANTES DE TUDO
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  
+  console.log(`🌐 CORS: ${req.method} ${req.originalUrl} - Origin: ${req.headers.origin}`);
+  
+  if (req.method === 'OPTIONS') {
+    console.log('✅ Respondendo OPTIONS request');
+    return res.sendStatus(200);
+  }
+  next();
+});
+
 // 🔧 Middlewares básicos
 app.use(compression()); // Compressão GZIP
 app.use(cors(corsOptions)); // CORS configurado
