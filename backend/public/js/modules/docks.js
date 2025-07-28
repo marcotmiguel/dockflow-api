@@ -82,9 +82,21 @@ const Docks = {
   loadDocksList: async function() {
     try {
       const docksResponse = await Auth.fetchAuth(`${app.API_URL}/docks`);
-      this.displayDocksList(docksResponse);
-      this.updateStatusCounts(docksResponse);
-      this.allDocks = docksResponse;
+      
+      // 🔧 CORREÇÃO 1: Verificar se docksResponse tem a propriedade data 
+      let docks = [];
+      if (docksResponse && docksResponse.data && Array.isArray(docksResponse.data)) {
+        docks = docksResponse.data;
+      } else if (Array.isArray(docksResponse)) {
+        docks = docksResponse;
+      } else {
+        console.warn('Resposta da API não é um array:', docksResponse);
+        docks = [];
+      }
+      
+      this.displayDocksList(docks);
+      this.updateStatusCounts(docks);
+      this.allDocks = docks;
     } catch (error) {
       console.error('Erro ao carregar docas:', error);
       this.showDocksError('Erro ao carregar lista de docas');
@@ -93,15 +105,26 @@ const Docks = {
 
   // Atualizar contadores de status
   updateStatusCounts: function(docks) {
+    // 🔧 CORREÇÃO 2: Verificar se docks é array antes de usar filter
+    if (!Array.isArray(docks)) {
+      console.warn('updateStatusCounts: docks não é um array:', docks);
+      docks = [];
+    }
+    
     const available = docks.filter(d => d.status === 'available').length;
     const occupied = docks.filter(d => d.status === 'occupied').length;
     const maintenance = docks.filter(d => d.status === 'maintenance').length;
     const total = docks.length;
 
-    document.getElementById('available-docks-count').textContent = available;
-    document.getElementById('occupied-docks-count').textContent = occupied;
-    document.getElementById('maintenance-docks-count').textContent = maintenance;
-    document.getElementById('total-docks-count').textContent = total;
+    const availableEl = document.getElementById('available-docks-count');
+    const occupiedEl = document.getElementById('occupied-docks-count');
+    const maintenanceEl = document.getElementById('maintenance-docks-count');
+    const totalEl = document.getElementById('total-docks-count');
+
+    if (availableEl) availableEl.textContent = available;
+    if (occupiedEl) occupiedEl.textContent = occupied;
+    if (maintenanceEl) maintenanceEl.textContent = maintenance;
+    if (totalEl) totalEl.textContent = total;
   },
 
   // Exibir lista de docas
@@ -110,6 +133,12 @@ const Docks = {
     const totalCount = document.getElementById('docks-total-count');
     
     if (!tbody) return;
+    
+    // 🔧 CORREÇÃO 3: Verificar se docks é array antes de usar length e forEach
+    if (!Array.isArray(docks)) {
+      console.warn('displayDocksList: docks não é um array:', docks);
+      docks = [];
+    }
     
     if (totalCount) {
       totalCount.textContent = docks.length;
@@ -232,7 +261,7 @@ const Docks = {
 
   // Pesquisar docas
   searchDocks: function(searchTerm) {
-    if (!this.allDocks) return;
+    if (!this.allDocks || !Array.isArray(this.allDocks)) return;
     
     const filteredDocks = this.allDocks.filter(dock => 
       dock.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -243,7 +272,7 @@ const Docks = {
 
   // Filtrar docas por status
   filterDocksByStatus: function(status) {
-    if (!this.allDocks) return;
+    if (!this.allDocks || !Array.isArray(this.allDocks)) return;
     
     let filteredDocks = this.allDocks;
     
@@ -257,7 +286,11 @@ const Docks = {
   // Visualizar doca
   viewDock: async function(dockId) {
     try {
-      const dock = await Auth.fetchAuth(`${app.API_URL}/docks/${dockId}`);
+      const dockResponse = await Auth.fetchAuth(`${app.API_URL}/docks/${dockId}`);
+      
+      // Extrair dados da resposta
+      const dock = dockResponse.data || dockResponse;
+      
       const statusConfig = this.getStatusConfig(dock.status);
       
       document.getElementById('view-dock-name').textContent = dock.name;
@@ -288,9 +321,15 @@ const Docks = {
     try {
       let loadings = [];
       try {
-        loadings = await Auth.fetchAuth(`${app.API_URL}/loadings/dock/${dockId}`);
+        const loadingsResponse = await Auth.fetchAuth(`${app.API_URL}/loadings/dock/${dockId}`);
+        loadings = loadingsResponse.data || loadingsResponse || [];
       } catch (error) {
         console.warn('Rota de carregamentos por doca não implementada:', error);
+        loadings = [];
+      }
+      
+      // Garantir que loadings é array
+      if (!Array.isArray(loadings)) {
         loadings = [];
       }
       
@@ -339,7 +378,8 @@ const Docks = {
   // Editar doca
   editDock: async function(dockId) {
     try {
-      const dock = await Auth.fetchAuth(`${app.API_URL}/docks/${dockId}`);
+      const dockResponse = await Auth.fetchAuth(`${app.API_URL}/docks/${dockId}`);
+      const dock = dockResponse.data || dockResponse;
       
       document.getElementById('dock-id').value = dock.id;
       document.getElementById('dock-name').value = dock.name;
@@ -488,7 +528,7 @@ const Docks = {
 
   // Exportar docas
   exportDocks: function() {
-    if (!this.allDocks || this.allDocks.length === 0) {
+    if (!this.allDocks || !Array.isArray(this.allDocks) || this.allDocks.length === 0) {
       Utils.showWarningMessage('Não há docas para exportar');
       return;
     }
