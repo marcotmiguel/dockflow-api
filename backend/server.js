@@ -243,6 +243,31 @@ app.get('/api/loadings-test', (req, res) => {
   });
 });
 
+// 🔧 Ver estrutura da tabela loadings
+app.get('/api/debug-loadings-structure', (req, res) => {
+  const { db } = require('./config/database');
+  
+  console.log('🔍 Verificando estrutura da tabela loadings...');
+  
+  db.query('DESCRIBE loadings', (err, structure) => {
+    if (err) {
+      console.error('❌ Erro ao descrever tabela:', err);
+      return res.json({
+        error: true,
+        message: err.message,
+        code: err.code
+      });
+    }
+    
+    console.log('✅ Estrutura da tabela loadings:', structure);
+    res.json({
+      success: true,
+      tableStructure: structure,
+      message: 'Estrutura da tabela loadings'
+    });
+  });
+});
+
 // 📡 Importar e registrar rotas modulares
 const loadRoutes = () => {
   const routes = [
