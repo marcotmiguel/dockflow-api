@@ -114,56 +114,61 @@ app.get('/api/health', (req, res) => {
 app.post('/api/auth/login', login);
 
 // 🧪 ENDPOINT DE DIAGNÓSTICO TEMPORÁRIO
+// 🧪 ENDPOINT DE DIAGNÓSTICO DETALHADO
 app.get('/api/debug', (req, res) => {
   const results = [];
   
-  results.push('🔍 DIAGNÓSTICO DE ROTAS:');
+  results.push('🔍 DIAGNÓSTICO DETALHADO:');
   
-  // Testar database antigo
-  try {
-    const pool = require('./database');
-    results.push('✅ ./database: OK - ' + typeof pool);
-  } catch (e) {
-    results.push('❌ ./database: ERRO - ' + e.message);
-  }
-  
-  // Testar database novo
-  try {
-    const { db } = require('./config/database');
-    results.push('✅ ./config/database: OK - ' + typeof db);
-  } catch (e) {
-    results.push('❌ ./config/database: ERRO - ' + e.message);
-  }
-  
-  // Testar database/index.js
-  try {
-    const pool = require('./database/index');
-    results.push('✅ ./database/index: OK - ' + typeof pool);
-    results.push('🔍 Tem método execute? ' + (typeof pool.execute));
-  } catch (e) {
-    results.push('❌ ./database/index: ERRO - ' + e.message);
-  }
-  
-  // Testar dockRoutes
+  // Testar rotas específicas do dockRoutes
   try {
     const dockRoutes = require('./routes/dockRoutes');
-    results.push('✅ dockRoutes: OK - ' + typeof dockRoutes);
-    results.push('🔍 É router? ' + (typeof dockRoutes.use === 'function'));
-    results.push('🔍 Tem stack? ' + Array.isArray(dockRoutes.stack));
-    results.push('🔍 Rotas: ' + (dockRoutes.stack?.length || 'N/A'));
+    results.push('📋 ROTAS DO DOCKROUTES:');
+    
+    if (dockRoutes.stack) {
+      dockRoutes.stack.forEach((layer, index) => {
+        const path = layer.route?.path || 'N/A';
+        const methods = Object.keys(layer.route?.methods || {}).join(', ').toUpperCase();
+        results.push(`   ${index + 1}. ${methods} ${path}`);
+      });
+    }
   } catch (e) {
-    results.push('❌ dockRoutes: ERRO - ' + e.message);
+    results.push('❌ Erro ao analisar dockRoutes: ' + e.message);
   }
   
-  // Testar loadingRoutes
+  // Testar rotas específicas do loadingRoutes  
   try {
     const loadingRoutes = require('./routes/loadingRoutes');
-    results.push('✅ loadingRoutes: OK - ' + typeof loadingRoutes);
-    results.push('🔍 É router? ' + (typeof loadingRoutes.use === 'function'));
-    results.push('🔍 Tem stack? ' + Array.isArray(loadingRoutes.stack));
-    results.push('🔍 Rotas: ' + (loadingRoutes.stack?.length || 'N/A'));
+    results.push('📅 ROTAS DO LOADINGROUTES:');
+    
+    if (loadingRoutes.stack) {
+      loadingRoutes.stack.forEach((layer, index) => {
+        const path = layer.route?.path || 'N/A';
+        const methods = Object.keys(layer.route?.methods || {}).join(', ').toUpperCase();
+        results.push(`   ${index + 1}. ${methods} ${path}`);
+      });
+    }
   } catch (e) {
-    results.push('❌ loadingRoutes: ERRO - ' + e.message);
+    results.push('❌ Erro ao analisar loadingRoutes: ' + e.message);
+  }
+  
+  // Verificar rotas registradas no app principal
+  results.push('🌐 ROTAS REGISTRADAS NO APP:');
+  try {
+    app._router.stack.forEach((middleware, index) => {
+      if (middleware.route) {
+        const methods = Object.keys(middleware.route.methods).join(', ').toUpperCase();
+        results.push(`   ${index + 1}. ${methods} ${middleware.route.path}`);
+      } else if (middleware.name === 'router') {
+        const regex = middleware.regexp.source.replace(/\\\//g, '/').replace(/\$|\^/g, '');
+        const subroutes = middleware.handle?.stack?.length || 0;
+        results.push(`   ${index + 1}. Router: ${regex} (${subroutes} sub-rotas)`);
+      } else {
+        results.push(`   ${index + 1}. Middleware: ${middleware.name || 'anonymous'}`);
+      }
+    });
+  } catch (e) {
+    results.push('❌ Erro ao listar rotas do app: ' + e.message);
   }
   
   res.json({
