@@ -332,6 +332,59 @@ app.get('/api/vehicles-frontend-test', (req, res) => {
   });
 });
 
+// 🧪 Debug completo das APIs
+app.get('/api/debug-all-apis', (req, res) => {
+  const results = [];
+  
+  results.push('🔍 DIAGNÓSTICO DE TODAS AS APIS:');
+  
+  // Testar database
+  try {
+    const { db } = require('./config/database');
+    results.push('✅ Database importado com sucesso');
+    
+    // Testar query simples
+    db.query('SELECT 1 as test', (err, result) => {
+      if (err) {
+        results.push('❌ Database não conectado: ' + err.message);
+      } else {
+        results.push('✅ Database conectado e funcionando');
+      }
+      
+      res.json({
+        results,
+        timestamp: new Date().toISOString()
+      });
+    });
+  } catch (e) {
+    results.push('❌ Erro ao importar database: ' + e.message);
+    res.json({
+      results,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// 🧪 Debug estrutura de tabelas
+app.get('/api/debug-tables', (req, res) => {
+  const { db } = require('./config/database');
+  
+  db.query('SHOW TABLES', (err, tables) => {
+    if (err) {
+      return res.json({
+        error: true,
+        message: err.message
+      });
+    }
+    
+    res.json({
+      success: true,
+      tables: tables.map(t => Object.values(t)[0]),
+      count: tables.length
+    });
+  });
+});
+
 // 📡 Importar e registrar rotas modulares
 const loadRoutes = () => {
   const routes = [
