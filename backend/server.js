@@ -273,6 +273,45 @@ app.get('/api/debug-loadings-structure', (req, res) => {
   });
 });
 
+// 🧪 Teste vehicles sem autenticação
+app.get('/api/vehicles-noauth', (req, res) => {
+  const { db } = require('./config/database');
+  
+  console.log('🔍 Testando vehicles sem auth...');
+  
+  db.query('SELECT * FROM vehicles LIMIT 3', (err, results) => {
+    if (err) {
+      console.error('❌ Erro na query vehicles:', err);
+      return res.json({
+        error: true,
+        message: err.message,
+        code: err.code
+      });
+    }
+    
+    console.log('✅ Query vehicles OK:', results.length);
+    res.json({
+      success: true,
+      data: results,
+      count: results.length,
+      message: 'Vehicles sem auth funcionando'
+    });
+  });
+});
+
+// 🧪 Teste auth middleware
+app.get('/api/test-auth', (req, res) => {
+  const { authMiddleware } = require('./middleware/authMiddleware');
+  
+  authMiddleware(req, res, () => {
+    res.json({
+      success: true,
+      message: 'Auth middleware funcionando',
+      user: req.user
+    });
+  });
+});
+
 // 📡 Importar e registrar rotas modulares
 const loadRoutes = () => {
   const routes = [
