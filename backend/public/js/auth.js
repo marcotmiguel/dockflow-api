@@ -1,21 +1,6 @@
-// js/auth.js - Sistema de Autenticação DockFlow (Compatible with config.js)
+// js/auth.js - Sistema de Autenticação DockFlow (Versão Corrigida)
 
-// 🔧 Usar API_URL do config.js (compatibilidade total)
-const getAPIUrl = () => {
-  // Primeiro: verificar se config.js definiu window.API_URL
-  if (window.API_URL) {
-    return window.API_URL;
-  }
-  
-  // Segundo: verificar se config global existe
-  if (typeof window.config !== 'undefined' && window.config.API_URL) {
-    return window.config.API_URL;
-  }
-  
-  // Fallback: construir dinamicamente
-  return window.location.origin + '/api';
-};
-
+// 🔧 API URL definitiva
 const API_URL = 'https://dockflow-api-production.up.railway.app/api';
 
 // Log apenas em desenvolvimento
@@ -110,60 +95,62 @@ const Auth = {
   getAuthHeaders: function() {
     const token = this.getToken();
     
-    return {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
+    const headers = {
+      'Content-Type': 'application/json'
     };
+    
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    
+    return headers;
   },
   
-  // Fazer requisição autenticada
+  // Fazer requisição autenticada (VERSÃO CORRIGIDA)
   fetchAuth: async function(url, options = {}) {
+    // Log para debug
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      console.log('🔄 fetchAuth chamado:', { url, method: options.method || 'GET' });
+    }
+    
     // Verificar se o token existe
     if (!this.isAuthenticated()) {
       throw new Error('Usuário não autenticado');
     }
     
-    // Adicionar cabeçalhos de autenticação
-    const headers = options.headers || {};
-    
-    const authOptions = {
+    // Preparar headers corretamente
+    const authHeaders = this.getAuthHeaders();
+    const requestOptions = {
       ...options,
       headers: {
-        ...headers,
-        ...this.getAuthHeaders()
+        ...authHeaders,
+        ...(options.headers || {})
       }
     };
-    // Forçar URL correta
-if (url.includes('localhost')) {
-  url = url.replace('http://localhost:3000', 'https://dockflow-api-production.up.railway.app');
-}
+    
+    // Log dos headers para debug
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      console.log('📋 Headers da requisição:', requestOptions.headers);
+    }
+    
     try {
-      const response = await fetch(url, authOptions);
+      const response = await fetch(url, requestOptions);
+      
+      // Log da resposta
+      if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        console.log('📨 Resposta recebida:', { status: response.status, ok: response.ok });
+      }
       
       // Se a resposta for 401 (não autorizado), fazer logout
       if (response.status === 401) {
-        // Log apenas em desenvolvimento
-        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-          console.warn('🔒 Sessão expirada, fazendo logout automático');
-        }
+        console.warn('🔒 Sessão expirada, fazendo logout automático');
         this.logout();
         throw new Error('Sessão expirada. Por favor, faça login novamente.');
       }
       
-      // Verificar o tipo de conteúdo
-      const contentType = response.headers.get('content-type');
-      
       // Se o status não for OK, tratar o erro
       if (!response.ok) {
-        // Para erros do servidor, retornar um array vazio em vez de falhar
-        if (response.status >= 500) {
-          if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-            console.warn(`⚠️ Erro do servidor (${response.status}) ao acessar ${url}. Retornando array vazio.`);
-          }
-          return [];
-        }
-        
-        // Para outros erros, tentar obter a mensagem de erro
+        // Para erros do servidor, tentar obter mensagem de erro
         try {
           const errorData = await response.json();
           throw new Error(errorData.message || `Erro ${response.status}: ${response.statusText}`);
@@ -172,7 +159,9 @@ if (url.includes('localhost')) {
         }
       }
       
-      // Verificar se é possível fazer parse de JSON (mesmo se content-type estiver incorreto)
+      // Verificar o tipo de conteúdo e fazer parse
+      const contentType = response.headers.get('content-type');
+      
       try {
         // Se o conteúdo for JSON, fazer parse
         if (contentType && contentType.includes('application/json')) {
@@ -185,34 +174,19 @@ if (url.includes('localhost')) {
           return JSON.parse(text);
         }
         
-        // Se não for JSON e a resposta for HTML, retornar um array vazio
-        if (text.includes('<!DOCTYPE html>') || text.includes('<html>')) {
-          if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-            console.warn('⚠️ Resposta HTML recebida em vez de JSON. Retornando array vazio.');
-          }
-          return [];
-        }
-        
-        // Outros tipos de resposta
+        // Se não for JSON, retornar texto
         return text;
       } catch (parseError) {
         if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
           console.warn('⚠️ Erro ao analisar resposta:', parseError);
         }
-        return []; // Retornar array vazio em vez de falhar
+        throw new Error('Erro ao processar resposta do servidor');
       }
+      
     } catch (error) {
       // Log apenas em desenvolvimento
       if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
         console.error('❌ Erro na requisição autenticada:', error);
-      }
-      
-      // Para erros de rede, retornar um array vazio em vez de falhar
-      if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
-        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-          console.warn('⚠️ Erro de rede ao fazer requisição. Retornando array vazio.');
-        }
-        return [];
       }
       
       throw error;
