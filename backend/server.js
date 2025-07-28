@@ -202,10 +202,10 @@ app.get('/api/debug-docks', (req, res) => {
   });
 });
 
-// 🔧 Loadings sem autenticação para teste - ADICIONAR AQUI TAMBÉM
+// 🔧 Loadings sem autenticação para teste - VERSÃO CORRIGIDA
 app.get('/api/loadings-test', (req, res) => {
   const { db } = require('./config/database');
-  console.log('📅 Testando loadings sem autenticação...');
+  console.log('📅 Testando loadings sem autenticação (versão corrigida)...');
   
   const today = new Date().toISOString().split('T')[0];
   
@@ -214,9 +214,13 @@ app.get('/api/loadings-test', (req, res) => {
       l.id,
       l.dock_id,
       l.driver_id,
-      l.route_id,
+      l.vehicle_id,
       l.status,
+      l.scheduled_time,
+      l.checkin_time,
+      l.checkout_time,
       l.created_at,
+      l.updated_at,
       d.name as dock_name
     FROM loadings l
     LEFT JOIN docks d ON l.dock_id = d.id
@@ -238,7 +242,8 @@ app.get('/api/loadings-test', (req, res) => {
       success: true, 
       data: loadings || [],
       count: loadings?.length || 0,
-      date: today
+      date: today,
+      message: 'Loadings recuperados com sucesso'
     });
   });
 });
