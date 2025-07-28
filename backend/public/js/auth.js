@@ -133,6 +133,11 @@ const Auth = {
       console.log('📋 Headers da requisição:', requestOptions.headers);
     }
     
+    // 🔧 CORREÇÃO: Forçar URL correta para produção
+    if (url.includes('localhost:3000')) {
+      url = url.replace('http://localhost:3000', 'https://dockflow-api-production.up.railway.app');
+    }
+    
     try {
       const response = await fetch(url, requestOptions);
       
