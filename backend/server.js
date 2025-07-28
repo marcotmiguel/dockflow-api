@@ -176,6 +176,72 @@ app.get('/api/debug', (req, res) => {
     timestamp: new Date().toISOString()
   });
 });
+// 🔧 Debug específico para docas - ADICIONAR AQUI
+app.get('/api/debug-docks', (req, res) => {
+  const { db } = require('./config/database');
+  
+  console.log('🔍 Testando query de docas...');
+  
+  db.query('SELECT * FROM docks LIMIT 1', (err, results) => {
+    if (err) {
+      console.error('❌ Erro na query:', err);
+      return res.json({
+        error: true,
+        message: err.message,
+        code: err.code,
+        sqlState: err.sqlState
+      });
+    }
+    
+    console.log('✅ Query funcionou, resultados:', results);
+    res.json({
+      success: true,
+      sampleData: results,
+      message: 'Query de docas funcionando'
+    });
+  });
+});
+
+// 🔧 Loadings sem autenticação para teste - ADICIONAR AQUI TAMBÉM
+app.get('/api/loadings-test', (req, res) => {
+  const { db } = require('./config/database');
+  console.log('📅 Testando loadings sem autenticação...');
+  
+  const today = new Date().toISOString().split('T')[0];
+  
+  db.query(`
+    SELECT 
+      l.id,
+      l.dock_id,
+      l.driver_id,
+      l.route_id,
+      l.status,
+      l.created_at,
+      d.name as dock_name
+    FROM loadings l
+    LEFT JOIN docks d ON l.dock_id = d.id
+    WHERE DATE(l.created_at) = ?
+    ORDER BY l.created_at DESC
+    LIMIT 10
+  `, [today], (err, loadings) => {
+    if (err) {
+      console.error('❌ Erro ao buscar loadings:', err);
+      return res.json({
+        error: true,
+        message: err.message,
+        code: err.code
+      });
+    }
+    
+    console.log(`✅ Encontrados ${loadings?.length || 0} loadings`);
+    res.json({ 
+      success: true, 
+      data: loadings || [],
+      count: loadings?.length || 0,
+      date: today
+    });
+  });
+});
 
 // 📡 Importar e registrar rotas modulares
 const loadRoutes = () => {
