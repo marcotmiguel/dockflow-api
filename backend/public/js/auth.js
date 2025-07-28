@@ -16,7 +16,7 @@ const getAPIUrl = () => {
   return window.location.origin + '/api';
 };
 
-const API_URL = window.location.origin + '/api';
+const API_URL = 'https://dockflow-api-production.up.railway.app/api';
 
 // Log apenas em desenvolvimento
 if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
