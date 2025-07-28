@@ -385,6 +385,65 @@ app.get('/api/debug-tables', (req, res) => {
   });
 });
 
+// 🧪 Teste POST de vehicles direto
+app.post('/api/vehicles-test-post', (req, res) => {
+  const { db } = require('./config/database');
+  
+  console.log('📝 POST vehicles test - Body:', req.body);
+  
+  const testVehicle = {
+    license_plate: 'TEST123',
+    vehicle_type: 'truck',
+    brand: 'Test',
+    model: 'Test',
+    year: 2020,
+    status: 'available',
+    notes: 'Teste'
+  };
+  
+  console.log('💾 Inserindo veículo teste:', testVehicle);
+  
+  db.query('INSERT INTO vehicles SET ?', testVehicle, (err, result) => {
+    if (err) {
+      console.error('❌ Erro ao criar veículo teste:', err);
+      return res.status(500).json({
+        success: false,
+        error: err.message,
+        code: err.code,
+        sqlState: err.sqlState
+      });
+    }
+    
+    console.log(`✅ Veículo teste criado com ID: ${result.insertId}`);
+    
+    res.json({
+      success: true,
+      message: 'Veículo teste criado com sucesso',
+      data: { id: result.insertId, ...testVehicle }
+    });
+  });
+});
+
+// 🧪 Verificar versão do vehicleRoutes
+app.get('/api/debug-vehicle-routes', (req, res) => {
+  try {
+    // Tentar importar a rota
+    const vehicleRoutes = require('./routes/vehicleRoutes');
+    
+    res.json({
+      success: true,
+      message: 'VehicleRoutes importado com sucesso',
+      hasAuth: vehicleRoutes.toString().includes('authMiddleware'),
+      routesCount: vehicleRoutes.stack ? vehicleRoutes.stack.length : 'N/A'
+    });
+  } catch (e) {
+    res.json({
+      success: false,
+      error: e.message
+    });
+  }
+});
+
 // 📡 Importar e registrar rotas modulares
 const loadRoutes = () => {
   const routes = [
