@@ -38,17 +38,22 @@ const corsOptions = {
       process.env.FRONTEND_URL,
       process.env.CORS_ORIGIN,
       'https://dockflow-api-production.up.railway.app',
+      'https://dockflow-api-production.up.railway.app/', // Com barra final
       process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : null
     ].filter(Boolean);
     
     // Permitir requisições sem origin (mobile apps, Postman, etc.)
     if (!origin) return callback(null, true);
     
+    // CORREÇÃO: Log para debug e permitir temporariamente
+    console.log(`🔍 CORS - Origem recebida: ${origin}`);
+    
     if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
       console.log(`🚨 CORS bloqueou origem: ${origin}`);
-      callback(new Error('Não permitido pelo CORS'));
+      // TEMPORÁRIO: Permitir mesmo se não estiver na lista (para debug)
+      callback(null, true);
     }
   },
   credentials: true,
