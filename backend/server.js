@@ -1,4 +1,4 @@
-// server.js - DockFlow API Server (Versão Profissional)
+// server.js - VERSÃO ORIGINAL COM CORREÇÃO MÍNIMA
 require('dotenv').config();
 
 const express = require('express');
@@ -17,7 +17,6 @@ const { login } = require('./controllers/authController');
 // 🔧 Configurações do servidor
 const PORT = process.env.PORT || 3000;
 const NODE_ENV = process.env.NODE_ENV || 'development';
-const IS_DEVELOPMENT = NODE_ENV === 'development';
 
 // 🚀 Inicialização do app
 const app = express();
@@ -92,8 +91,7 @@ app.get('/', (req, res) => {
       vehicles: '/api/vehicles',
       products: '/api/products',
       users: '/api/users',
-      whatsapp: '/api/whatsapp',
-      ...(IS_DEVELOPMENT && { debug: '/api/debug' })
+      whatsapp: '/api/whatsapp'
     }
   });
 });
@@ -115,22 +113,21 @@ app.get('/api/health', (req, res) => {
 // 🔐 Rota de autenticação
 app.post('/api/auth/login', login);
 
-// 📡 Carregar e registrar rotas modulares
+// 📡 Importar e registrar rotas modulares PRIMEIRO
 const loadRoutes = () => {
   const routes = [
     { path: '/api/auth', file: './routes/authRoutes', name: 'authRoutes' },
-    { path: '/api/vehicles', file: './routes/vehicleRoutes', name: 'vehicleRoutes' },
     { path: '/api/docks', file: './routes/dockRoutes', name: 'dockRoutes' },
     { path: '/api/loadings', file: './routes/loadingRoutes', name: 'loadingRoutes' },
     { path: '/api/products', file: './routes/productRoutes', name: 'productRoutes' },
     { path: '/api/drivers', file: './routes/driverRoutes', name: 'driverRoutes' },
     { path: '/api/whatsapp', file: './routes/whatsappRoutes', name: 'whatsappRoutes' },
+    { path: '/api/vehicles', file: './routes/vehicleRoutes', name: 'vehicleRoutes' },
     { path: '/api/users', file: './routes/userRoutes', name: 'userRoutes' },
     { path: '/api/routes', file: './routes/routeRoutes', name: 'routeRoutes' },
     { path: '/api/carregamentos', file: './routes/carregamentoRoutes', name: 'carregamentoRoutes' }
   ];
 
-  // Carregar rotas principais primeiro
   routes.forEach(({ path, file, name }) => {
     try {
       const routeModule = require(file);
@@ -139,69 +136,50 @@ const loadRoutes = () => {
     } catch (e) {
       console.log(`⚠️ ${name} não encontrado`);
       
-      // Fallback para loadings se não existir
+      // Rota básica para loadings se não existir
       if (name === 'loadingRoutes') {
-        createLoadingsFallback(path);
-      }
-    }
-  });
-
-  // Carregar rotas de debug apenas em desenvolvimento
-  if (IS_DEVELOPMENT) {
-    try {
-      const debugRoutes = require('./routes/debugRoutes');
-      app.use('/api/debug', debugRoutes);
-      console.log('🧪 debugRoutes carregado (desenvolvimento)');
-    } catch (e) {
-      console.log('⚠️ debugRoutes não encontrado');
-    }
-  }
-};
-
-// 🔧 Fallback para loadings se não existir o arquivo
-const createLoadingsFallback = (path) => {
-  const { db } = require('./config/database');
-  
-  app.get(`${path}/today`, (req, res) => {
-    console.log('📅 Fallback: Buscando carregamentos de hoje...');
-    
-    db.query(`
-      SELECT 
-        lq.id, 
-        lq.status, 
-        lq.priority, 
-        lq.created_at,
-        lq.notes,
-        v.license_plate, 
-        v.vehicle_type,
-        d.name as dock_name
-      FROM loading_queue lq
-      LEFT JOIN vehicles v ON lq.vehicle_id = v.id
-      LEFT JOIN docks d ON lq.dock_id = d.id
-      WHERE DATE(lq.created_at) = CURDATE()
-      ORDER BY lq.created_at DESC
-    `, (err, loadings) => {
-      if (err) {
-        console.error('❌ Erro ao buscar carregamentos:', err);
-        return res.status(500).json({ 
-          success: false, 
-          error: err.message,
-          timestamp: new Date().toISOString()
+        const { db } = require('./config/database');
+        app.get('/api/loadings/today', (req, res) => {
+          console.log('📅 Buscando carregamentos de hoje...');
+          
+          db.query(`
+            SELECT 
+              lq.id, 
+              lq.status, 
+              lq.priority, 
+              lq.created_at,
+              lq.notes,
+              v.license_plate, 
+              v.vehicle_type,
+              d.name as dock_name
+            FROM loading_queue lq
+            LEFT JOIN vehicles v ON lq.vehicle_id = v.id
+            LEFT JOIN docks d ON lq.dock_id = d.id
+            WHERE DATE(lq.created_at) = CURDATE()
+            ORDER BY lq.created_at DESC
+          `, (err, loadings) => {
+            if (err) {
+              console.error('❌ Erro ao buscar carregamentos:', err);
+              return res.status(500).json({ 
+                success: false, 
+                error: err.message,
+                timestamp: new Date().toISOString()
+              });
+            }
+            
+            console.log(`✅ ${loadings?.length || 0} carregamentos encontrados`);
+            
+            res.json({ 
+              success: true, 
+              data: loadings || [],
+              count: loadings?.length || 0,
+              date: new Date().toISOString().split('T')[0]
+            });
+          });
         });
       }
-      
-      console.log(`✅ ${loadings?.length || 0} carregamentos encontrados`);
-      
-      res.json({ 
-        success: true, 
-        data: loadings || [],
-        count: loadings?.length || 0,
-        date: new Date().toISOString().split('T')[0]
-      });
-    });
+    }
   });
-  
-  console.log('✅ loadingRoutes fallback criado');
 };
 
 // 🚀 Iniciar o servidor
@@ -215,9 +193,6 @@ const startServer = () => {
     console.log(`🏥 Health check: http://localhost:${PORT}/api/health`);
     console.log(`🌐 Interface: http://localhost:${PORT}/carregamento.html`);
     console.log(`📋 API: http://localhost:${PORT}/api`);
-    if (IS_DEVELOPMENT) {
-      console.log(`🧪 Debug: http://localhost:${PORT}/api/debug`);
-    }
     console.log(`🔐 Segurança: ATIVADA`);
     console.log(`🛡️ Rate limiting: ATIVADO`);
     console.log(`🌐 Railway IPv6: CONFIGURADO`);
@@ -239,16 +214,9 @@ const startServer = () => {
   process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 };
 
-// 🚀 Inicializar tudo na ordem correta
-console.log('🛠️ Configurando handlers de erro...');
-applyErrorHandlers(app);
-console.log('✅ Handlers de erro configurados');
-
-console.log('🗄️ Inicializando banco de dados...');
+// 🚀 Inicializar tudo
 initializeDatabase();
-
-console.log('📡 Carregando rotas...');
 loadRoutes();
-
-console.log('🚀 Iniciando servidor...');
+// 🔧 Handlers de erro (devem vir por último)
+applyErrorHandlers(app);
 startServer();
