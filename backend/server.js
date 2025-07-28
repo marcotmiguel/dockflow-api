@@ -113,6 +113,110 @@ app.get('/api/health', (req, res) => {
 // 🔐 Rota de autenticação
 app.post('/api/auth/login', login);
 
+// 🚑 FALLBACK MANUAL PARA VEHICLES (correção temporária)
+const createVehiclesFallback = () => {
+  const { db } = require('./config/database');
+  
+  console.log('🚑 Criando fallback manual para vehicles...');
+  
+  // GET todos os veículos
+  app.get('/api/vehicles', (req, res) => {
+    console.log('📋 GET /api/vehicles - Buscando todos os veículos');
+    
+    db.query('SELECT * FROM vehicles ORDER BY license_plate', (err, results) => {
+      if (err) {
+        console.error('❌ Erro ao obter veículos:', err);
+        return res.status(500).json({ 
+          success: false,
+          message: 'Erro interno do servidor',
+          error: err.message 
+        });
+      }
+      
+      console.log(`✅ ${results.length} veículos encontrados`);
+      res.json({
+        success: true,
+        data: results,
+        count: results.length
+      });
+    });
+  });
+  
+  // POST criar novo veículo
+  app.post('/api/vehicles', (req, res) => {
+    const { license_plate, vehicle_type, brand, model, year, notes } = req.body;
+    
+    console.log('📝 POST /api/vehicles - Criando novo veículo:', { license_plate, vehicle_type });
+    
+    // Validação básica
+    if (!license_plate || !vehicle_type) {
+      console.log('❌ Dados obrigatórios ausentes');
+      return res.status(400).json({ 
+        success: false,
+        message: 'Placa e tipo de veículo são obrigatórios' 
+      });
+    }
+    
+    // Verificar se placa já está cadastrada
+    db.query('SELECT id FROM vehicles WHERE license_plate = ?', [license_plate.toUpperCase()], (err, results) => {
+      if (err) {
+        console.error('❌ Erro ao verificar placa do veículo:', err);
+        return res.status(500).json({ 
+          success: false,
+          message: 'Erro interno do servidor',
+          error: err.message 
+        });
+      }
+      
+      if (results.length > 0) {
+        console.log('❌ Placa já cadastrada:', license_plate);
+        return res.status(400).json({ 
+          success: false,
+          message: 'Placa já cadastrada para outro veículo' 
+        });
+      }
+      
+      // Preparar dados do novo veículo
+      const newVehicle = {
+        license_plate: license_plate.toUpperCase().trim(),
+        vehicle_type: vehicle_type.trim(),
+        brand: brand ? brand.trim() : null,
+        model: model ? model.trim() : null,
+        year: year ? parseInt(year) : null,
+        status: 'available',
+        notes: notes ? notes.trim() : null
+      };
+      
+      console.log('💾 Inserindo veículo:', newVehicle);
+      
+      // Inserir veículo
+      db.query('INSERT INTO vehicles SET ?', newVehicle, (err, result) => {
+        if (err) {
+          console.error('❌ Erro ao criar veículo:', err);
+          return res.status(500).json({ 
+            success: false,
+            message: 'Erro interno do servidor',
+            error: err.message 
+          });
+        }
+        
+        console.log(`✅ Veículo criado com ID: ${result.insertId}`);
+        
+        res.status(201).json({
+          success: true,
+          message: 'Veículo criado com sucesso',
+          data: {
+            id: result.insertId,
+            ...newVehicle
+          }
+        });
+      });
+    });
+  });
+  
+  console.log('✅ Fallback vehicles criado com sucesso');
+};
+
 // 📡 Importar e registrar rotas modulares PRIMEIRO
 const loadRoutes = () => {
   const routes = [
@@ -122,12 +226,22 @@ const loadRoutes = () => {
     { path: '/api/products', file: './routes/productRoutes', name: 'productRoutes' },
     { path: '/api/drivers', file: './routes/driverRoutes', name: 'driverRoutes' },
     { path: '/api/whatsapp', file: './routes/whatsappRoutes', name: 'whatsappRoutes' },
-    { path: '/api/vehicles', file: './routes/vehicleRoutes', name: 'vehicleRoutes' },
     { path: '/api/users', file: './routes/userRoutes', name: 'userRoutes' },
     { path: '/api/routes', file: './routes/routeRoutes', name: 'routeRoutes' },
     { path: '/api/carregamentos', file: './routes/carregamentoRoutes', name: 'carregamentoRoutes' }
   ];
 
+  // Tentar carregar vehicleRoutes primeiro
+  try {
+    const vehicleRoutes = require('./routes/vehicleRoutes');
+    app.use('/api/vehicles', vehicleRoutes);
+    console.log('✅ vehicleRoutes carregado');
+  } catch (e) {
+    console.log('⚠️ vehicleRoutes não encontrado, usando fallback');
+    createVehiclesFallback();
+  }
+
+  // Carregar outras rotas
   routes.forEach(({ path, file, name }) => {
     try {
       const routeModule = require(file);
