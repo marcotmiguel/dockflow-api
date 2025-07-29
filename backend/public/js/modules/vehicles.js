@@ -1,4 +1,35 @@
-// js/modules/vehicles.js
+
+// Mapeamento de tipos de veículo (frontend → backend)
+const mapVehicleType = (frontendType) => {
+  const mapping = {
+    'Caminhão 3/4': 'truck',
+    'Caminhão Toco': 'truck',
+    'Caminhão Truck': 'truck', 
+    'Caminhão Bi-Truck': 'bitruck',
+    'Carreta': 'trailer',
+    'Van': 'van',
+    'Utilitário': 'utility',
+    'Pickup': 'pickup',
+    'Moto': 'motorcycle'
+  };
+  
+  return mapping[frontendType] || frontendType.toLowerCase();
+};
+
+// Mapeamento reverso (backend → frontend)
+const mapVehicleTypeDisplay = (backendType) => {
+  const mapping = {
+    'truck': 'Caminhão',
+    'bitruck': 'Bi-Truck',
+    'trailer': 'Carreta',
+    'van': 'Van',
+    'utility': 'Utilitário',
+    'pickup': 'Pickup',
+    'motorcycle': 'Moto'
+  };
+  
+  return mapping[backendType] || backendType;
+};
 
 // Objeto para gerenciar veículos
 const Vehicles = {
@@ -157,7 +188,7 @@ const Vehicles = {
             </div>
           </td>
           <td>
-            <span class="badge bg-secondary">${vehicle.vehicle_type}</span>
+            <span class="badge bg-secondary">${mapVehicleTypeDisplay(vehicle.vehicle_type)}</span>
           </td>
           <td>${brandModel}</td>
           <td>${vehicle.year || '--'}</td>
@@ -380,15 +411,15 @@ const Vehicles = {
       return;
     }
     
-    const vehicleData = {
-      license_plate: licensePlate,
-      vehicle_type: activeModal.querySelector('#vehicle-type').value,
-      brand: activeModal.querySelector('#vehicle-brand').value.trim() || null,
-      model: activeModal.querySelector('#vehicle-model').value.trim() || null,
-      year: activeModal.querySelector('#vehicle-year').value || null,
-      status: activeModal.querySelector('#vehicle-status').value,
-      notes: activeModal.querySelector('#vehicle-notes').value.trim() || null
-    };
+ const vehicleData = {
+  license_plate: licensePlate,
+  vehicle_type: mapVehicleType(activeModal.querySelector('#vehicle-type').value), // ← CORREÇÃO AQUI
+  brand: activeModal.querySelector('#vehicle-brand').value.trim() || null,
+  model: activeModal.querySelector('#vehicle-model').value.trim() || null,
+  year: activeModal.querySelector('#vehicle-year').value || null,
+  status: activeModal.querySelector('#vehicle-status').value,
+  notes: activeModal.querySelector('#vehicle-notes').value.trim() || null
+};
     
     // Validar dados obrigatórios
     if (!vehicleData.license_plate || !vehicleData.vehicle_type) {
