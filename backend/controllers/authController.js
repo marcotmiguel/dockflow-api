@@ -1,7 +1,7 @@
 // controllers/authController.js - Controlador de autenticação
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { db } = require('../config/database');
+const { db } = require('../database');
 
 // 🔐 Login do usuário
 const login = async (req, res) => {
@@ -18,83 +18,71 @@ const login = async (req, res) => {
       });
     }
 
-    // Buscar usuário no banco
-    db.query('SELECT * FROM users WHERE email = ? AND status = ?', [email, 'active'], (err, users) => {
-      if (err) {
-        console.error('❌ Erro na consulta:', err);
-        return res.status(500).json({
-          success: false,
-          message: 'Erro interno do servidor'
-        });
+    // Buscar usuário no banco (convertido para promises)
+    const [users] = await db.execute('SELECT * FROM users WHERE email = ? AND status = ?', [email, 'active']);
+
+    if (users.length === 0) {
+      console.log('❌ Usuário não encontrado:', email);
+      return res.status(401).json({
+        success: false,
+        message: 'Email ou senha incorretos'
+      });
+    }
+
+    const user = users[0];
+    
+    // Verificar senha (suporta hash e senha simples)
+    let passwordValid = false;
+    
+    if (user.password.startsWith('$2')) {
+      // Senha hasheada
+      passwordValid = await bcrypt.compare(password, user.password);
+    } else {
+      // Senha simples (para compatibilidade)
+      passwordValid = password === user.password;
+    }
+
+    if (!passwordValid) {
+      console.log('❌ Senha incorreta para:', email);
+      return res.status(401).json({
+        success: false,
+        message: 'Email ou senha incorretos'
+      });
+    }
+
+    // Gerar token JWT
+    const JWT_SECRET = process.env.JWT_SECRET || 'dockflow_secret_key_2024';
+    
+    const token = jwt.sign(
+      { 
+        id: user.id, 
+        email: user.email, 
+        role: user.role 
+      },
+      JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+
+    // Atualizar último login
+    try {
+      await db.execute('UPDATE users SET last_login = NOW() WHERE id = ?', [user.id]);
+    } catch (updateErr) {
+      console.error('⚠️ Erro ao atualizar last_login:', updateErr);
+    }
+
+    console.log('✅ Login bem-sucedido para:', user.email);
+
+    // Resposta compatível com auth.js
+    res.json({
+      success: true,
+      message: 'Login realizado com sucesso',
+      token: token,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role
       }
-
-      if (users.length === 0) {
-        console.log('❌ Usuário não encontrado:', email);
-        return res.status(401).json({
-          success: false,
-          message: 'Email ou senha incorretos'
-        });
-      }
-
-      const user = users[0];
-      
-      // Verificar senha (suporta hash e senha simples)
-      const checkPassword = async () => {
-        let passwordValid = false;
-        
-        if (user.password.startsWith('$2')) {
-          // Senha hasheada
-          passwordValid = await bcrypt.compare(password, user.password);
-        } else {
-          // Senha simples (para compatibilidade)
-          passwordValid = password === user.password;
-        }
-
-        if (!passwordValid) {
-          console.log('❌ Senha incorreta para:', email);
-          return res.status(401).json({
-            success: false,
-            message: 'Email ou senha incorretos'
-          });
-        }
-
-        // Gerar token JWT
-        const JWT_SECRET = process.env.JWT_SECRET || 'dockflow_secret_key_2024';
-        
-        const token = jwt.sign(
-          { 
-            id: user.id, 
-            email: user.email, 
-            role: user.role 
-          },
-          JWT_SECRET,
-          { expiresIn: '24h' }
-        );
-
-        // Atualizar último login
-        db.query('UPDATE users SET last_login = NOW() WHERE id = ?', [user.id], (updateErr) => {
-          if (updateErr) {
-            console.error('⚠️ Erro ao atualizar last_login:', updateErr);
-          }
-        });
-
-        console.log('✅ Login bem-sucedido para:', user.email);
-
-        // Resposta compatível com auth.js
-        res.json({
-          success: true,
-          message: 'Login realizado com sucesso',
-          token: token,
-          user: {
-            id: user.id,
-            email: user.email,
-            name: user.name,
-            role: user.role
-          }
-        });
-      };
-
-      checkPassword();
     });
 
   } catch (error) {

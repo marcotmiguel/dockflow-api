@@ -1,5 +1,5 @@
 // database/migrations.js - Criação e migração de tabelas
-const { db, dbConfig } = require('../config/database');
+const { db } = require('../database');
 
 // 📋 Definições das tabelas
 const tableDefinitions = {
@@ -192,44 +192,33 @@ const tableDefinitions = {
   `
 };
 
-// 🗄️ Função para criar/verificar tabelas
-const createTables = () => {
-  return new Promise((resolve, reject) => {
+// 🗄️ Função para criar/verificar tabelas (convertido para promises)
+const createTables = async () => {
+  try {
     console.log('🗄️ Iniciando criação/verificação de tabelas...');
     
     // Verificar se tabelas já existem
-    const checkTablesQuery = "SHOW TABLES";
-    db.query(checkTablesQuery, (err, existingTables) => {
-      if (err) {
-        console.error('❌ Erro ao verificar tabelas existentes:', err);
-        reject(err);
-        return;
+    const [existingTables] = await db.execute("SHOW TABLES");
+    const tableNames = existingTables.map(table => Object.values(table)[0]);
+    console.log('📋 Tabelas existentes:', tableNames);
+
+    // Executar criação de tabelas
+    const tablesToCreate = Object.keys(tableDefinitions);
+    
+    for (const tableName of tablesToCreate) {
+      try {
+        await db.execute(tableDefinitions[tableName]);
+        console.log(`✅ Tabela ${tableName} criada/verificada com sucesso`);
+      } catch (err) {
+        console.error(`❌ Erro ao criar tabela ${tableName}:`, err);
       }
-
-      const tableNames = existingTables.map(table => Object.values(table)[0]);
-      console.log('📋 Tabelas existentes:', tableNames);
-
-      // Executar criação de tabelas
-      const tablesToCreate = Object.keys(tableDefinitions);
-      let tablesCreated = 0;
-      
-      tablesToCreate.forEach(tableName => {
-        db.query(tableDefinitions[tableName], (err) => {
-          if (err) {
-            console.error(`❌ Erro ao criar tabela ${tableName}:`, err);
-          } else {
-            console.log(`✅ Tabela ${tableName} criada/verificada com sucesso`);
-          }
-          
-          tablesCreated++;
-          if (tablesCreated === tablesToCreate.length) {
-            console.log('✅ Todas as tabelas foram processadas');
-            resolve();
-          }
-        });
-      });
-    });
-  });
+    }
+    
+    console.log('✅ Todas as tabelas foram processadas');
+  } catch (error) {
+    console.error('❌ Erro ao criar tabelas:', error);
+    throw error;
+  }
 };
 
 module.exports = {
