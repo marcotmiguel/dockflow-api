@@ -1,4 +1,4 @@
-// server.js - VERSÃO MÍNIMA QUE FUNCIONA
+// server.js - VERSÃO UNIFICADA COM PROMISES
 require('dotenv').config();
 
 const express = require('express');
@@ -6,13 +6,15 @@ const bodyParser = require('body-parser');
 const compression = require('compression');
 
 // 📁 Importar módulos personalizados
-const { connectWithRetry } = require('./config/database');
 const { applyCorsConfig } = require('./config/cors');
 const { applyLoggingMiddleware, applyErrorHandlers } = require('./middleware/logging');
 const { createTables } = require('./database/migrations');
 const { migrateRoutesTable } = require('./database/routesMigration');
 const { runSeeds } = require('./database/seeds');
 const { login } = require('./controllers/authController');
+
+// 🗄️ Importar database unificado (promises)
+const { db, testConnection, initializeDatabase } = require('./database');
 
 // 🔧 Configurações do servidor
 const PORT = process.env.PORT || 3000;
@@ -47,13 +49,13 @@ try {
 // 📊 Sistema de logs
 applyLoggingMiddleware(app);
 
-// 🗄️ Inicializar banco de dados
-const initializeDatabase = async () => {
+// 🗄️ Inicializar banco de dados (usando promises)
+const initializeDatabaseWithRetry = async () => {
   try {
     console.log('🗄️ Inicializando banco de dados...');
     
-    // Conectar ao banco
-    connectWithRetry();
+    // Testar conexão
+    await testConnection();
     
     // Aguardar um pouco para a conexão se estabelecer
     setTimeout(async () => {
@@ -112,22 +114,14 @@ app.get('/api/health', (req, res) => {
 // 🔐 Rota de autenticação
 app.post('/api/auth/login', login);
 
-// 🚗 ROTAS DE VEHICLES (DIRETAS - SEM ARQUIVO EXTERNO)
-const { db } = require('./config/database');
+// 🚗 ROTAS DE VEHICLES (CONVERTIDAS PARA PROMISES)
 
 // GET todos os veículos
-app.get('/api/vehicles', (req, res) => {
-  console.log('📋 GET /api/vehicles - Buscando todos os veículos');
-  
-  db.query('SELECT * FROM vehicles ORDER BY license_plate', (err, results) => {
-    if (err) {
-      console.error('❌ Erro ao obter veículos:', err);
-      return res.status(500).json({ 
-        success: false,
-        message: 'Erro interno do servidor',
-        error: err.message 
-      });
-    }
+app.get('/api/vehicles', async (req, res) => {
+  try {
+    console.log('📋 GET /api/vehicles - Buscando todos os veículos');
+    
+    const [results] = await db.execute('SELECT * FROM vehicles ORDER BY license_plate');
     
     console.log(`✅ ${results.length} veículos encontrados`);
     res.json({
@@ -135,23 +129,23 @@ app.get('/api/vehicles', (req, res) => {
       data: results,
       count: results.length
     });
-  });
+  } catch (err) {
+    console.error('❌ Erro ao obter veículos:', err);
+    res.status(500).json({ 
+      success: false,
+      message: 'Erro interno do servidor',
+      error: err.message 
+    });
+  }
 });
 
 // GET veículo por ID
-app.get('/api/vehicles/:id', (req, res) => {
-  const { id } = req.params;
-  console.log(`🔍 GET /api/vehicles/${id} - Buscando veículo específico`);
-  
-  db.query('SELECT * FROM vehicles WHERE id = ?', [id], (err, results) => {
-    if (err) {
-      console.error('❌ Erro ao obter veículo:', err);
-      return res.status(500).json({ 
-        success: false,
-        message: 'Erro interno do servidor',
-        error: err.message 
-      });
-    }
+app.get('/api/vehicles/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    console.log(`🔍 GET /api/vehicles/${id} - Buscando veículo específico`);
+    
+    const [results] = await db.execute('SELECT * FROM vehicles WHERE id = ?', [id]);
     
     if (results.length === 0) {
       return res.status(404).json({ 
@@ -165,36 +159,36 @@ app.get('/api/vehicles/:id', (req, res) => {
       success: true,
       data: results[0]
     });
-  });
+  } catch (err) {
+    console.error('❌ Erro ao obter veículo:', err);
+    res.status(500).json({ 
+      success: false,
+      message: 'Erro interno do servidor',
+      error: err.message 
+    });
+  }
 });
 
 // POST criar novo veículo
-app.post('/api/vehicles', (req, res) => {
-  const { license_plate, vehicle_type, brand, model, year, notes } = req.body;
-  
-  console.log('📝 POST /api/vehicles - Criando novo veículo:', { license_plate, vehicle_type });
-  
-  // Validação básica
-  if (!license_plate || !vehicle_type) {
-    console.log('❌ Dados obrigatórios ausentes');
-    return res.status(400).json({ 
-      success: false,
-      message: 'Placa e tipo de veículo são obrigatórios' 
-    });
-  }
-  
-  // Verificar se placa já está cadastrada
-  db.query('SELECT id FROM vehicles WHERE license_plate = ?', [license_plate.toUpperCase()], (err, results) => {
-    if (err) {
-      console.error('❌ Erro ao verificar placa do veículo:', err);
-      return res.status(500).json({ 
+app.post('/api/vehicles', async (req, res) => {
+  try {
+    const { license_plate, vehicle_type, brand, model, year, notes } = req.body;
+    
+    console.log('📝 POST /api/vehicles - Criando novo veículo:', { license_plate, vehicle_type });
+    
+    // Validação básica
+    if (!license_plate || !vehicle_type) {
+      console.log('❌ Dados obrigatórios ausentes');
+      return res.status(400).json({ 
         success: false,
-        message: 'Erro interno do servidor',
-        error: err.message 
+        message: 'Placa e tipo de veículo são obrigatórios' 
       });
     }
     
-    if (results.length > 0) {
+    // Verificar se placa já está cadastrada
+    const [existingVehicles] = await db.execute('SELECT id FROM vehicles WHERE license_plate = ?', [license_plate.toUpperCase()]);
+    
+    if (existingVehicles.length > 0) {
       console.log('❌ Placa já cadastrada:', license_plate);
       return res.status(400).json({ 
         success: false,
@@ -216,57 +210,51 @@ app.post('/api/vehicles', (req, res) => {
     console.log('💾 Inserindo veículo:', newVehicle);
     
     // Inserir veículo
-    db.query('INSERT INTO vehicles SET ?', newVehicle, (err, result) => {
-      if (err) {
-        console.error('❌ Erro ao criar veículo:', err);
-        return res.status(500).json({ 
-          success: false,
-          message: 'Erro interno do servidor',
-          error: err.message 
-        });
+    const [result] = await db.execute(
+      'INSERT INTO vehicles (license_plate, vehicle_type, brand, model, year, status, notes) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [newVehicle.license_plate, newVehicle.vehicle_type, newVehicle.brand, newVehicle.model, newVehicle.year, newVehicle.status, newVehicle.notes]
+    );
+    
+    console.log(`✅ Veículo criado com ID: ${result.insertId}`);
+    
+    res.status(201).json({
+      success: true,
+      message: 'Veículo criado com sucesso',
+      data: {
+        id: result.insertId,
+        ...newVehicle
       }
-      
-      console.log(`✅ Veículo criado com ID: ${result.insertId}`);
-      
-      res.status(201).json({
-        success: true,
-        message: 'Veículo criado com sucesso',
-        data: {
-          id: result.insertId,
-          ...newVehicle
-        }
-      });
     });
-  });
+  } catch (err) {
+    console.error('❌ Erro ao criar veículo:', err);
+    res.status(500).json({ 
+      success: false,
+      message: 'Erro interno do servidor',
+      error: err.message 
+    });
+  }
 });
 
 // PUT atualizar veículo
-app.put('/api/vehicles/:id', (req, res) => {
-  const { id } = req.params;
-  const { license_plate, vehicle_type, brand, model, year, status, notes } = req.body;
-  
-  console.log(`📝 PUT /api/vehicles/${id} - Atualizando veículo`);
-  
-  // Validação básica
-  if (!license_plate || !vehicle_type) {
-    return res.status(400).json({ 
-      success: false,
-      message: 'Placa e tipo de veículo são obrigatórios' 
-    });
-  }
-  
-  // Verificar se placa já está cadastrada para outro veículo
-  db.query('SELECT id FROM vehicles WHERE license_plate = ? AND id != ?', [license_plate.toUpperCase(), id], (err, results) => {
-    if (err) {
-      console.error('❌ Erro ao verificar placa do veículo:', err);
-      return res.status(500).json({ 
+app.put('/api/vehicles/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { license_plate, vehicle_type, brand, model, year, status, notes } = req.body;
+    
+    console.log(`📝 PUT /api/vehicles/${id} - Atualizando veículo`);
+    
+    // Validação básica
+    if (!license_plate || !vehicle_type) {
+      return res.status(400).json({ 
         success: false,
-        message: 'Erro interno do servidor',
-        error: err.message 
+        message: 'Placa e tipo de veículo são obrigatórios' 
       });
     }
     
-    if (results.length > 0) {
+    // Verificar se placa já está cadastrada para outro veículo
+    const [existingVehicles] = await db.execute('SELECT id FROM vehicles WHERE license_plate = ? AND id != ?', [license_plate.toUpperCase(), id]);
+    
+    if (existingVehicles.length > 0) {
       return res.status(400).json({ 
         success: false,
         message: 'Placa já cadastrada para outro veículo' 
@@ -274,12 +262,6 @@ app.put('/api/vehicles/:id', (req, res) => {
     }
     
     // Atualizar veículo
-    const updateQuery = `
-      UPDATE vehicles 
-      SET license_plate = ?, vehicle_type = ?, brand = ?, model = ?, year = ?, status = ?, notes = ?
-      WHERE id = ?
-    `;
-    
     const updateValues = [
       license_plate.toUpperCase().trim(), 
       vehicle_type.trim(), 
@@ -291,61 +273,55 @@ app.put('/api/vehicles/:id', (req, res) => {
       id
     ];
     
-    db.query(updateQuery, updateValues, (err, result) => {
-      if (err) {
-        console.error('❌ Erro ao atualizar veículo:', err);
-        return res.status(500).json({ 
-          success: false,
-          message: 'Erro interno do servidor',
-          error: err.message 
-        });
-      }
-      
-      if (result.affectedRows === 0) {
-        return res.status(404).json({ 
-          success: false,
-          message: 'Veículo não encontrado' 
-        });
-      }
-      
-      console.log(`✅ Veículo ${id} atualizado com sucesso`);
-      
-      res.json({
-        success: true,
-        message: 'Veículo atualizado com sucesso',
-        data: {
-          id: parseInt(id),
-          license_plate: license_plate.toUpperCase(),
-          vehicle_type,
-          brand,
-          model,
-          year: year ? parseInt(year) : null,
-          status: status || 'available',
-          notes
-        }
-      });
-    });
-  });
-});
-
-// DELETE excluir veículo
-app.delete('/api/vehicles/:id', (req, res) => {
-  const { id } = req.params;
-  
-  console.log(`🗑️ DELETE /api/vehicles/${id} - Excluindo veículo`);
-  
-  // Verificar se veículo está associado a algum carregamento
-  db.query('SELECT COUNT(*) as count FROM loadings WHERE vehicle_id = ?', [id], (err, results) => {
-    if (err) {
-      console.error('❌ Erro ao verificar uso do veículo:', err);
-      return res.status(500).json({ 
+    const [result] = await db.execute(
+      'UPDATE vehicles SET license_plate = ?, vehicle_type = ?, brand = ?, model = ?, year = ?, status = ?, notes = ? WHERE id = ?',
+      updateValues
+    );
+    
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ 
         success: false,
-        message: 'Erro interno do servidor',
-        error: err.message 
+        message: 'Veículo não encontrado' 
       });
     }
     
-    if (results[0].count > 0) {
+    console.log(`✅ Veículo ${id} atualizado com sucesso`);
+    
+    res.json({
+      success: true,
+      message: 'Veículo atualizado com sucesso',
+      data: {
+        id: parseInt(id),
+        license_plate: license_plate.toUpperCase(),
+        vehicle_type,
+        brand,
+        model,
+        year: year ? parseInt(year) : null,
+        status: status || 'available',
+        notes
+      }
+    });
+  } catch (err) {
+    console.error('❌ Erro ao atualizar veículo:', err);
+    res.status(500).json({ 
+      success: false,
+      message: 'Erro interno do servidor',
+      error: err.message 
+    });
+  }
+});
+
+// DELETE excluir veículo
+app.delete('/api/vehicles/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    console.log(`🗑️ DELETE /api/vehicles/${id} - Excluindo veículo`);
+    
+    // Verificar se veículo está associado a algum carregamento
+    const [loadings] = await db.execute('SELECT COUNT(*) as count FROM loadings WHERE vehicle_id = ?', [id]);
+    
+    if (loadings[0].count > 0) {
       console.log(`❌ Veículo ${id} está associado a carregamentos`);
       return res.status(400).json({ 
         success: false,
@@ -354,69 +330,60 @@ app.delete('/api/vehicles/:id', (req, res) => {
     }
     
     // Excluir veículo se não estiver em uso
-    db.query('DELETE FROM vehicles WHERE id = ?', [id], (err, result) => {
-      if (err) {
-        console.error('❌ Erro ao excluir veículo:', err);
-        return res.status(500).json({ 
-          success: false,
-          message: 'Erro interno do servidor',
-          error: err.message 
-        });
-      }
-      
-      if (result.affectedRows === 0) {
-        return res.status(404).json({ 
-          success: false,
-          message: 'Veículo não encontrado' 
-        });
-      }
-      
-      console.log(`✅ Veículo ${id} excluído com sucesso`);
-      
-      res.json({ 
-        success: true,
-        message: 'Veículo excluído com sucesso' 
-      });
-    });
-  });
-});
-
-// 📅 LOADINGS DE HOJE (DIRETO)
-app.get('/api/loadings/today', (req, res) => {
-  console.log('📅 GET /api/loadings/today - Buscando carregamentos de hoje');
-  
-  const today = new Date().toISOString().split('T')[0];
-  
-  db.query(`
-    SELECT 
-      l.id,
-      l.dock_id,
-      l.driver_id,
-      l.vehicle_id,
-      l.status,
-      l.scheduled_time,
-      l.checkin_time,
-      l.checkout_time,
-      l.created_at,
-      l.updated_at,
-      d.name as dock_name,
-      dr.name as driver_name,
-      v.license_plate
-    FROM loadings l
-    LEFT JOIN docks d ON l.dock_id = d.id
-    LEFT JOIN drivers dr ON l.driver_id = dr.id
-    LEFT JOIN vehicles v ON l.vehicle_id = v.id
-    WHERE DATE(l.created_at) = ?
-    ORDER BY l.created_at DESC
-  `, [today], (err, loadings) => {
-    if (err) {
-      console.error('❌ Erro ao buscar carregamentos de hoje:', err);
-      return res.status(500).json({ 
-        success: false, 
-        error: err.message,
-        timestamp: new Date().toISOString()
+    const [result] = await db.execute('DELETE FROM vehicles WHERE id = ?', [id]);
+    
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ 
+        success: false,
+        message: 'Veículo não encontrado' 
       });
     }
+    
+    console.log(`✅ Veículo ${id} excluído com sucesso`);
+    
+    res.json({ 
+      success: true,
+      message: 'Veículo excluído com sucesso' 
+    });
+  } catch (err) {
+    console.error('❌ Erro ao excluir veículo:', err);
+    res.status(500).json({ 
+      success: false,
+      message: 'Erro interno do servidor',
+      error: err.message 
+    });
+  }
+});
+
+// 📅 LOADINGS DE HOJE (CONVERTIDO PARA PROMISES)
+app.get('/api/loadings/today', async (req, res) => {
+  try {
+    console.log('📅 GET /api/loadings/today - Buscando carregamentos de hoje');
+    
+    const today = new Date().toISOString().split('T')[0];
+    
+    const [loadings] = await db.execute(`
+      SELECT 
+        l.id,
+        l.dock_id,
+        l.driver_id,
+        l.vehicle_id,
+        l.status,
+        l.scheduled_time,
+        l.checkin_time,
+        l.checkout_time,
+        l.created_at,
+        l.updated_at,
+        d.name as dock_name,
+        dr.name as driver_name,
+        v.license_plate
+      FROM loadings l
+      LEFT JOIN docks d ON l.dock_id = d.id
+      LEFT JOIN drivers dr ON l.driver_id = dr.id
+      LEFT JOIN vehicles v ON l.vehicle_id = v.id
+      WHERE DATE(l.created_at) = ?
+      ORDER BY l.created_at DESC
+    `, [today]);
     
     console.log(`✅ ${loadings?.length || 0} carregamentos de hoje encontrados`);
     
@@ -426,10 +393,17 @@ app.get('/api/loadings/today', (req, res) => {
       count: loadings?.length || 0,
       date: today
     });
-  });
+  } catch (err) {
+    console.error('❌ Erro ao buscar carregamentos de hoje:', err);
+    res.status(500).json({ 
+      success: false, 
+      error: err.message,
+      timestamp: new Date().toISOString()
+    });
+  }
 });
 
-// 📡 Carregar rotas restantes (que funcionam)
+// 📡 Carregar rotas restantes (que agora usam o mesmo database)
 const loadWorkingRoutes = () => {
   const workingRoutes = [
     { path: '/api/docks', file: './routes/dockRoutes', name: 'dockRoutes' },
@@ -472,10 +446,14 @@ const startServer = () => {
   // 🔧 Graceful shutdown
   const gracefulShutdown = (signal) => {
     console.log(`🛑 ${signal} recebido, encerrando servidor...`);
-    server.close(() => {
+    server.close(async () => {
       console.log('✅ Servidor encerrado com sucesso');
-      const { db } = require('./config/database');
-      db.end();
+      try {
+        await db.end();
+        console.log('✅ Conexão com banco encerrada');
+      } catch (error) {
+        console.error('❌ Erro ao encerrar conexão:', error);
+      }
       process.exit(0);
     });
   };
@@ -485,7 +463,7 @@ const startServer = () => {
 };
 
 // 🚀 Inicializar tudo
-initializeDatabase();
+initializeDatabaseWithRetry();
 loadWorkingRoutes();
 // 🔧 Handlers de erro (devem vir por último)
 applyErrorHandlers(app);
