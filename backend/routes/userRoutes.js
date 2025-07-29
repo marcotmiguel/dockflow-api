@@ -7,8 +7,48 @@ const { db } = require('../database');
 // Middleware de autenticação
 const { authMiddleware } = require('../middleware/authMiddleware');
 
-// Aplicar middleware de autenticação a todas as rotas
+// 🧪 ROTA DE TESTE SEM AUTENTICAÇÃO (ANTES do middleware)
+router.post('/test-no-auth', (req, res) => {
+  console.log('🧪 Teste sem auth executado');
+  res.json({ 
+    message: 'Teste sem autenticação OK', 
+    timestamp: new Date(),
+    body: req.body
+  });
+});
+
+// Aplicar middleware de autenticação a todas as rotas APÓS este ponto
 router.use(authMiddleware);
+
+// 🧪 ROTA DE TESTE 1: Sem banco, com autenticação
+router.post('/test-simple', (req, res) => {
+  console.log('🧪 Teste simples executado');
+  res.json({ 
+    message: 'Teste simples OK', 
+    timestamp: new Date(),
+    body: req.body
+  });
+});
+
+// 🧪 ROTA DE TESTE 2: Com banco, com autenticação
+router.post('/test-db', (req, res) => {
+  console.log('🧪 Teste com banco executado');
+  
+  // Query simples para testar banco
+  db.query('SELECT 1 as test', (err, results) => {
+    if (err) {
+      console.error('❌ Erro no teste de banco:', err);
+      return res.status(500).json({ error: 'Erro no banco', details: err.message });
+    }
+    
+    console.log('✅ Banco funcionando no teste');
+    res.json({ 
+      message: 'Teste com banco OK', 
+      timestamp: new Date(),
+      dbResult: results[0]
+    });
+  });
+});
 
 // GET /api/users - Listar todos os usuários
 router.get('/', (req, res) => {
