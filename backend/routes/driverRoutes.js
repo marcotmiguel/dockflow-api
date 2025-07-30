@@ -1,234 +1,288 @@
-// backend/routes/driverRoutes.js
 const express = require('express');
 const router = express.Router();
-const { db } = require('../config/database');
-
-// Middleware de autenticação
-const { authMiddleware } = require('../middleware/authMiddleware');
-
-// Aplicar middleware de autenticação a todas as rotas
-router.use(authMiddleware);
+const { db } = require('../database');
 
 // GET /api/drivers - Listar todos os motoristas
-router.get('/', (req, res) => {
-  const query = `
-    SELECT 
-      id, 
-      name, 
-      phone, 
-      cpf,
-      notes,
-      created_at, 
-      updated_at 
-    FROM drivers 
-    ORDER BY created_at DESC
-  `;
-  
-  db.query(query, (err, results) => {
-    if (err) {
-      console.error('Erro ao buscar motoristas:', err);
-      return res.status(500).json({ error: 'Erro interno do servidor' });
-    }
+router.get('/', async (req, res) => {
+  try {
+    console.log('📋 Buscando lista de motoristas...');
     
-    res.json(results);
-  });
+    const [rows] = await db.execute(`
+      SELECT 
+        id, 
+        name, 
+        phone, 
+        cpf,
+        notes,
+        created_at, 
+        updated_at 
+      FROM drivers 
+      ORDER BY created_at DESC
+    `);
+    
+    console.log(`✅ Encontrados ${rows.length} motoristas`);
+    
+    res.json({
+      success: true,
+      data: rows,
+      count: rows.length
+    });
+    
+  } catch (error) {
+    console.error('❌ Erro ao buscar motoristas:', error);
+    res.status(500).json({
+      error: 'Erro interno do servidor',
+      message: 'Erro ao buscar lista de motoristas',
+      timestamp: new Date().toISOString()
+    });
+  }
 });
 
 // GET /api/drivers/:id - Buscar motorista por ID
-router.get('/:id', (req, res) => {
-  const driverId = req.params.id;
-  
-  const query = `
-    SELECT 
-      id, 
-      name, 
-      phone, 
-      cpf,
-      notes,
-      created_at, 
-      updated_at 
-    FROM drivers 
-    WHERE id = ?
-  `;
-  
-  db.query(query, [driverId], (err, results) => {
-    if (err) {
-      console.error('Erro ao buscar motorista:', err);
-      return res.status(500).json({ error: 'Erro interno do servidor' });
+router.get('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    console.log(`🔍 Buscando motorista ID: ${id}`);
+    
+    const [rows] = await db.execute(`
+      SELECT 
+        id, 
+        name, 
+        phone, 
+        cpf,
+        notes,
+        created_at, 
+        updated_at 
+      FROM drivers 
+      WHERE id = ?
+    `, [id]);
+    
+    if (rows.length === 0) {
+      return res.status(404).json({
+        error: 'Motorista não encontrado',
+        message: `Motorista com ID ${id} não existe`,
+        timestamp: new Date().toISOString()
+      });
     }
     
-    if (results.length === 0) {
-      return res.status(404).json({ error: 'Motorista não encontrado' });
-    }
+    console.log(`✅ Motorista encontrado: ${rows[0].name}`);
     
-    res.json(results[0]);
-  });
+    res.json({
+      success: true,
+      data: rows[0]
+    });
+    
+  } catch (error) {
+    console.error('❌ Erro ao buscar motorista:', error);
+    res.status(500).json({
+      error: 'Erro interno do servidor',
+      message: 'Erro ao buscar motorista específico',
+      timestamp: new Date().toISOString()
+    });
+  }
 });
 
 // POST /api/drivers - Criar novo motorista
-router.post('/', (req, res) => {
-  const { name, phone, cpf, notes } = req.body;
-  
-  // Validações básicas
-  if (!name || !phone || !cpf) {
-    return res.status(400).json({ error: 'Nome, telefone e CPF são obrigatórios' });
-  }
-  
-  // Validar CPF (11 dígitos)
-  const cleanCpf = cpf.replace(/\D/g, '');
-  if (cleanCpf.length !== 11) {
-    return res.status(400).json({ error: 'CPF deve ter 11 dígitos' });
-  }
-  
-  // Verificar se CPF já existe
-  const cpfCheck = 'SELECT id FROM drivers WHERE cpf = ?';
-  db.query(cpfCheck, [cleanCpf], (err, cpfResults) => {
-    if (err) {
-      console.error('Erro ao verificar CPF:', err);
-      return res.status(500).json({ error: 'Erro interno do servidor' });
+router.post('/', async (req, res) => {
+  try {
+    const { name, phone, cpf, notes } = req.body;
+    
+    console.log('📝 Criando novo motorista:', { name, phone, cpf });
+    
+    // Validações básicas
+    if (!name || !phone || !cpf) {
+      return res.status(400).json({
+        error: 'Dados obrigatórios ausentes',
+        message: 'Nome, telefone e CPF são obrigatórios',
+        timestamp: new Date().toISOString()
+      });
     }
     
-    if (cpfResults.length > 0) {
-      return res.status(400).json({ error: 'Este CPF já está cadastrado' });
+    // Validar CPF (11 dígitos)
+    const cleanCpf = cpf.replace(/\D/g, '');
+    if (cleanCpf.length !== 11) {
+      return res.status(400).json({
+        error: 'CPF inválido',
+        message: 'CPF deve ter 11 dígitos',
+        timestamp: new Date().toISOString()
+      });
     }
     
-    // Inserir motorista (APENAS campos que existem na tabela)
-    const insertQuery = `
+    // Verificar se CPF já existe
+    const [existingDrivers] = await db.execute(
+      'SELECT id FROM drivers WHERE cpf = ?', 
+      [cleanCpf]
+    );
+    
+    if (existingDrivers.length > 0) {
+      return res.status(400).json({
+        error: 'CPF já cadastrado',
+        message: 'Este CPF já está cadastrado para outro motorista',
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    // Inserir motorista
+    const [result] = await db.execute(`
       INSERT INTO drivers (name, phone, cpf, notes) 
       VALUES (?, ?, ?, ?)
-    `;
-    
-    const values = [
+    `, [
       name.trim(),
       phone.trim(),
       cleanCpf,
       notes ? notes.trim() : null
-    ];
+    ]);
     
-    db.query(insertQuery, values, (err, result) => {
-      if (err) {
-        console.error('Erro ao criar motorista:', err);
-        return res.status(500).json({ error: 'Erro interno do servidor' });
-      }
-      
-      res.status(201).json({
-        message: 'Motorista criado com sucesso',
-        driverId: result.insertId
-      });
+    console.log(`✅ Motorista criado com ID: ${result.insertId}`);
+    
+    res.status(201).json({
+      success: true,
+      data: {
+        id: result.insertId,
+        name: name.trim(),
+        phone: phone.trim(),
+        cpf: cleanCpf,
+        notes: notes ? notes.trim() : null
+      },
+      message: 'Motorista criado com sucesso'
     });
-  });
+    
+  } catch (error) {
+    console.error('❌ Erro ao criar motorista:', error);
+    res.status(500).json({
+      error: 'Erro interno do servidor',
+      message: 'Erro ao criar novo motorista',
+      timestamp: new Date().toISOString()
+    });
+  }
 });
 
 // PUT /api/drivers/:id - Atualizar motorista
-router.put('/:id', (req, res) => {
-  const driverId = req.params.id;
-  const { name, phone, cpf, notes } = req.body;
-  
-  // Validações básicas
-  if (!name || !phone || !cpf) {
-    return res.status(400).json({ error: 'Nome, telefone e CPF são obrigatórios' });
-  }
-  
-  // Validar CPF (11 dígitos)
-  const cleanCpf = cpf.replace(/\D/g, '');
-  if (cleanCpf.length !== 11) {
-    return res.status(400).json({ error: 'CPF deve ter 11 dígitos' });
-  }
-  
-  // Verificar se motorista existe
-  const driverCheck = 'SELECT id FROM drivers WHERE id = ?';
-  db.query(driverCheck, [driverId], (err, driverResults) => {
-    if (err) {
-      console.error('Erro ao verificar motorista:', err);
-      return res.status(500).json({ error: 'Erro interno do servidor' });
-    }
+router.put('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, phone, cpf, notes } = req.body;
     
-    if (driverResults.length === 0) {
-      return res.status(404).json({ error: 'Motorista não encontrado' });
-    }
+    console.log(`📝 Atualizando motorista ID: ${id}`);
     
-    // Verificar se CPF já existe (exceto o próprio motorista)
-    const cpfCheck = 'SELECT id FROM drivers WHERE cpf = ? AND id != ?';
-    db.query(cpfCheck, [cleanCpf, driverId], (err, cpfResults) => {
-      if (err) {
-        console.error('Erro ao verificar CPF:', err);
-        return res.status(500).json({ error: 'Erro interno do servidor' });
-      }
-      
-      if (cpfResults.length > 0) {
-        return res.status(400).json({ error: 'Este CPF já está cadastrado' });
-      }
-      
-      // Atualizar motorista
-      const updateQuery = `
-        UPDATE drivers 
-        SET name = ?, phone = ?, cpf = ?, notes = ?
-        WHERE id = ?
-      `;
-      
-      const values = [
-        name.trim(),
-        phone.trim(),
-        cleanCpf,
-        notes ? notes.trim() : null,
-        driverId
-      ];
-      
-      db.query(updateQuery, values, (err, result) => {
-        if (err) {
-          console.error('Erro ao atualizar motorista:', err);
-          return res.status(500).json({ error: 'Erro interno do servidor' });
-        }
-        
-        res.json({ message: 'Motorista atualizado com sucesso' });
+    // Validações básicas
+    if (!name || !phone || !cpf) {
+      return res.status(400).json({
+        error: 'Dados obrigatórios ausentes',
+        message: 'Nome, telefone e CPF são obrigatórios',
+        timestamp: new Date().toISOString()
       });
+    }
+    
+    // Validar CPF (11 dígitos)
+    const cleanCpf = cpf.replace(/\D/g, '');
+    if (cleanCpf.length !== 11) {
+      return res.status(400).json({
+        error: 'CPF inválido',
+        message: 'CPF deve ter 11 dígitos',
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    // Verificar se CPF já existe para outro motorista
+    const [existingDrivers] = await db.execute(
+      'SELECT id FROM drivers WHERE cpf = ? AND id != ?', 
+      [cleanCpf, id]
+    );
+    
+    if (existingDrivers.length > 0) {
+      return res.status(400).json({
+        error: 'CPF já cadastrado',
+        message: 'Este CPF já está cadastrado para outro motorista',
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    // Atualizar motorista
+    const [result] = await db.execute(`
+      UPDATE drivers 
+      SET name = ?, phone = ?, cpf = ?, notes = ?
+      WHERE id = ?
+    `, [
+      name.trim(),
+      phone.trim(),
+      cleanCpf,
+      notes ? notes.trim() : null,
+      id
+    ]);
+    
+    if (result.affectedRows === 0) {
+      return res.status(404).json({
+        error: 'Motorista não encontrado',
+        message: `Motorista com ID ${id} não existe`,
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    console.log(`✅ Motorista ${id} atualizado com sucesso`);
+    
+    res.json({
+      success: true,
+      message: 'Motorista atualizado com sucesso'
     });
-  });
+    
+  } catch (error) {
+    console.error('❌ Erro ao atualizar motorista:', error);
+    res.status(500).json({
+      error: 'Erro interno do servidor',
+      message: 'Erro ao atualizar motorista',
+      timestamp: new Date().toISOString()
+    });
+  }
 });
 
 // DELETE /api/drivers/:id - Excluir motorista
-router.delete('/:id', (req, res) => {
-  const driverId = req.params.id;
-  
-  // Verificar se motorista existe
-  const checkQuery = 'SELECT id, name FROM drivers WHERE id = ?';
-  db.query(checkQuery, [driverId], (err, results) => {
-    if (err) {
-      console.error('Erro ao verificar motorista:', err);
-      return res.status(500).json({ error: 'Erro interno do servidor' });
-    }
-    
-    if (results.length === 0) {
-      return res.status(404).json({ error: 'Motorista não encontrado' });
-    }
+router.delete('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    console.log(`🗑️ Deletando motorista ID: ${id}`);
     
     // Verificar se motorista tem carregamentos
-    const loadingsCheck = 'SELECT COUNT(*) as loading_count FROM loadings WHERE driver_id = ?';
-    db.query(loadingsCheck, [driverId], (err, loadingResults) => {
-      if (err) {
-        console.error('Erro ao verificar carregamentos:', err);
-        return res.status(500).json({ error: 'Erro interno do servidor' });
-      }
-      
-      const loadingCount = loadingResults[0].loading_count;
-      if (loadingCount > 0) {
-        return res.status(400).json({ 
-          error: 'Não é possível excluir motorista que possui carregamentos registrados' 
-        });
-      }
-      
-      // Excluir motorista
-      const deleteQuery = 'DELETE FROM drivers WHERE id = ?';
-      db.query(deleteQuery, [driverId], (err, result) => {
-        if (err) {
-          console.error('Erro ao excluir motorista:', err);
-          return res.status(500).json({ error: 'Erro interno do servidor' });
-        }
-        
-        res.json({ message: 'Motorista excluído com sucesso' });
+    const [loadings] = await db.execute(
+      'SELECT COUNT(*) as count FROM loadings WHERE driver_id = ?', 
+      [id]
+    );
+    
+    if (loadings[0].count > 0) {
+      console.log(`❌ Motorista ${id} está associado a carregamentos`);
+      return res.status(400).json({
+        error: 'Motorista possui carregamentos',
+        message: 'Não é possível excluir motorista que possui carregamentos registrados',
+        timestamp: new Date().toISOString()
       });
+    }
+    
+    // Excluir motorista
+    const [result] = await db.execute('DELETE FROM drivers WHERE id = ?', [id]);
+    
+    if (result.affectedRows === 0) {
+      return res.status(404).json({
+        error: 'Motorista não encontrado',
+        message: `Motorista com ID ${id} não existe`,
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    console.log(`✅ Motorista ${id} excluído com sucesso`);
+    
+    res.json({
+      success: true,
+      message: 'Motorista excluído com sucesso'
     });
-  });
+    
+  } catch (error) {
+    console.error('❌ Erro ao excluir motorista:', error);
+    res.status(500).json({
+      error: 'Erro interno do servidor',
+      message: 'Erro ao excluir motorista',
+      timestamp: new Date().toISOString()
+    });
+  }
 });
 
 module.exports = router;
