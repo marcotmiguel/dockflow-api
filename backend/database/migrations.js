@@ -54,7 +54,7 @@ const tableDefinitions = {
     CREATE TABLE IF NOT EXISTS vehicles (
       id INT NOT NULL AUTO_INCREMENT,
       license_plate VARCHAR(10) NOT NULL,
-      vehicle_type ENUM('truck','van','car','motorcycle','other') NOT NULL,
+      vehicle_type VARCHAR(50) NOT NULL,
       brand VARCHAR(50) DEFAULT NULL,
       model VARCHAR(50) DEFAULT NULL,
       year INT DEFAULT NULL,
@@ -192,6 +192,45 @@ const tableDefinitions = {
   `
 };
 
+// 🔧 Função para migrar a tabela vehicles existente
+const migrateVehiclesTable = async () => {
+  try {
+    console.log('🔧 Verificando se precisa migrar tabela vehicles...');
+    
+    // Verificar se a tabela vehicles existe
+    const [tables] = await db.execute("SHOW TABLES LIKE 'vehicles'");
+    
+    if (tables.length > 0) {
+      console.log('🔍 Tabela vehicles encontrada, verificando estrutura...');
+      
+      // Verificar estrutura atual da coluna vehicle_type
+      const [columns] = await db.execute("DESCRIBE vehicles");
+      const vehicleTypeColumn = columns.find(col => col.Field === 'vehicle_type');
+      
+      if (vehicleTypeColumn) {
+        console.log('📋 Coluna vehicle_type atual:', vehicleTypeColumn.Type);
+        
+        // Se for ENUM, migrar para VARCHAR
+        if (vehicleTypeColumn.Type.includes('enum')) {
+          console.log('🔄 Migrando vehicle_type de ENUM para VARCHAR...');
+          
+          await db.execute(`
+            ALTER TABLE vehicles 
+            MODIFY COLUMN vehicle_type VARCHAR(50) NOT NULL
+          `);
+          
+          console.log('✅ Migração da coluna vehicle_type concluída!');
+        } else {
+          console.log('✅ Coluna vehicle_type já está no formato correto');
+        }
+      }
+    }
+  } catch (error) {
+    console.error('❌ Erro ao migrar tabela vehicles:', error);
+    // Não throw o erro para não quebrar o sistema
+  }
+};
+
 // 🗄️ Função para criar/verificar tabelas (convertido para promises)
 const createTables = async () => {
   try {
@@ -201,6 +240,9 @@ const createTables = async () => {
     const [existingTables] = await db.execute("SHOW TABLES");
     const tableNames = existingTables.map(table => Object.values(table)[0]);
     console.log('📋 Tabelas existentes:', tableNames);
+
+    // Executar migração da tabela vehicles primeiro
+    await migrateVehiclesTable();
 
     // Executar criação de tabelas
     const tablesToCreate = Object.keys(tableDefinitions);
@@ -223,5 +265,6 @@ const createTables = async () => {
 
 module.exports = {
   tableDefinitions,
-  createTables
+  createTables,
+  migrateVehiclesTable
 };
