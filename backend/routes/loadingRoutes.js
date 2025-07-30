@@ -1,114 +1,24 @@
 const express = require('express');
 const router = express.Router();
-const pool = require('../database/index');
-const jwt = require('jsonwebtoken');
+const { db } = require('../database');
 
-// Middleware de autenticação
-const authenticateToken = (req, res, next) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
-  
-  if (!token) {
-    console.log('❌ Token não fornecido no header Authorization');
-    return res.status(401).json({ 
-      message: 'Token não fornecido',
-      timestamp: new Date().toISOString()
-    });
-  }
-
-  jwt.verify(token, process.env.JWT_SECRET || 'dockflow-secret-key', (err, user) => {
-    if (err) {
-      console.log('❌ Token inválido:', err.message);
-      return res.status(403).json({ 
-        message: 'Token inválido',
-        timestamp: new Date().toISOString()
-      });
-    }
-    
-    console.log('✅ Token válido para usuário:', user.username);
-    req.user = user;
-    next();
-  });
-};
-
-// GET /api/loadings/today - Carregamentos do dia (REQUER AUTENTICAÇÃO)
-router.get('/today', authenticateToken, async (req, res) => {
-  try {
-    console.log('📋 Buscando carregamentos de hoje...');
-    
-    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-    
-    const [rows] = await pool.execute(`
-      SELECT 
-        l.id,
-        l.truck_plate,
-        l.driver_name,
-        l.cargo_type,
-        l.weight,
-        l.origin,
-        l.destination,
-        l.status,
-        l.scheduled_time,
-        l.actual_start_time,
-        l.actual_end_time,
-        l.dock_id,
-        d.name as dock_name,
-        l.created_at,
-        l.updated_at
-      FROM loadings l
-      LEFT JOIN docks d ON l.dock_id = d.id
-      WHERE DATE(l.created_at) = ?
-      ORDER BY l.created_at DESC
-    `, [today]);
-    
-    console.log(`✅ Encontrados ${rows.length} carregamentos de hoje`);
-    
-    res.json({
-      success: true,
-      data: rows,
-      count: rows.length,
-      date: today
-    });
-    
-  } catch (error) {
-    console.error('❌ Erro ao buscar carregamentos de hoje:', error);
-    res.status(500).json({
-      error: 'Erro interno do servidor',
-      message: 'Erro ao buscar carregamentos de hoje',
-      timestamp: new Date().toISOString()
-    });
-  }
-});
-
-// GET /api/loadings - Listar todos os carregamentos
+// GET /api/docks - Listar todas as docas
 router.get('/', async (req, res) => {
   try {
-    console.log('📋 Buscando todos os carregamentos...');
+    console.log('📋 Buscando lista de docas...');
     
-    const [rows] = await pool.execute(`
+    const [rows] = await db.execute(`
       SELECT 
-        l.id,
-        l.truck_plate,
-        l.driver_name,
-        l.cargo_type,
-        l.weight,
-        l.origin,
-        l.destination,
-        l.status,
-        l.scheduled_time,
-        l.actual_start_time,
-        l.actual_end_time,
-        l.dock_id,
-        d.name as dock_name,
-        l.created_at,
-        l.updated_at
-      FROM loadings l
-      LEFT JOIN docks d ON l.dock_id = d.id
-      ORDER BY l.created_at DESC
-      LIMIT 100
+        id,
+        name,
+        status,
+        created_at,
+        updated_at
+      FROM docks 
+      ORDER BY name ASC
     `);
     
-    console.log(`✅ Encontrados ${rows.length} carregamentos`);
+    console.log(`✅ Encontradas ${rows.length} docas`);
     
     res.json({
       success: true,
@@ -117,52 +27,41 @@ router.get('/', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Erro ao buscar carregamentos:', error);
+    console.error('❌ Erro ao buscar docas:', error);
     res.status(500).json({
       error: 'Erro interno do servidor',
-      message: 'Erro ao buscar carregamentos',
+      message: 'Erro ao buscar lista de docas',
       timestamp: new Date().toISOString()
     });
   }
 });
 
-// GET /api/loadings/:id - Buscar carregamento específico
+// GET /api/docks/:id - Buscar doca específica
 router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    console.log(`🔍 Buscando carregamento ID: ${id}`);
+    console.log(`🔍 Buscando doca ID: ${id}`);
     
-    const [rows] = await pool.execute(`
+    const [rows] = await db.execute(`
       SELECT 
-        l.id,
-        l.truck_plate,
-        l.driver_name,
-        l.cargo_type,
-        l.weight,
-        l.origin,
-        l.destination,
-        l.status,
-        l.scheduled_time,
-        l.actual_start_time,
-        l.actual_end_time,
-        l.dock_id,
-        d.name as dock_name,
-        l.created_at,
-        l.updated_at
-      FROM loadings l
-      LEFT JOIN docks d ON l.dock_id = d.id
-      WHERE l.id = ?
+        id,
+        name,
+        status,
+        created_at,
+        updated_at
+      FROM docks 
+      WHERE id = ?
     `, [id]);
     
     if (rows.length === 0) {
       return res.status(404).json({
-        error: 'Carregamento não encontrado',
-        message: `Carregamento com ID ${id} não existe`,
+        error: 'Doca não encontrada',
+        message: `Doca com ID ${id} não existe`,
         timestamp: new Date().toISOString()
       });
     }
     
-    console.log(`✅ Carregamento encontrado: ${rows[0].truck_plate}`);
+    console.log(`✅ Doca encontrada: ${rows[0].name}`);
     
     res.json({
       success: true,
@@ -170,155 +69,125 @@ router.get('/:id', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Erro ao buscar carregamento:', error);
+    console.error('❌ Erro ao buscar doca:', error);
     res.status(500).json({
       error: 'Erro interno do servidor',
-      message: 'Erro ao buscar carregamento específico',
+      message: 'Erro ao buscar doca específica',
       timestamp: new Date().toISOString()
     });
   }
 });
 
-// POST /api/loadings - Criar novo carregamento
+// POST /api/docks - Criar nova doca
 router.post('/', async (req, res) => {
   try {
-    const {
-      truck_plate,
-      driver_name,
-      cargo_type,
-      weight,
-      origin,
-      destination,
-      scheduled_time,
-      dock_id
-    } = req.body;
+    const { name, status = 'available' } = req.body;
     
-    console.log('📝 Criando novo carregamento:', { truck_plate, driver_name, cargo_type });
+    console.log('📝 Criando nova doca:', { name, status });
     
-    // Validação básica
-    if (!truck_plate || !driver_name || !cargo_type) {
+    // Validação
+    if (!name) {
       return res.status(400).json({
         error: 'Dados obrigatórios ausentes',
-        message: 'Placa, motorista e tipo de carga são obrigatórios',
+        message: 'Nome da doca é obrigatório',
         timestamp: new Date().toISOString()
       });
     }
     
-    const [result] = await pool.execute(`
-      INSERT INTO loadings (
-        truck_plate, driver_name, cargo_type, weight, origin, destination,
-        scheduled_time, dock_id, status
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'scheduled')
-    `, [truck_plate, driver_name, cargo_type, weight, origin, destination, scheduled_time, dock_id]);
+    const [result] = await db.execute(`
+      INSERT INTO docks (name, status)
+      VALUES (?, ?)
+    `, [name, status]);
     
-    console.log(`✅ Carregamento criado com ID: ${result.insertId}`);
+    console.log(`✅ Doca criada com ID: ${result.insertId}`);
     
     res.status(201).json({
       success: true,
       data: {
         id: result.insertId,
-        truck_plate,
-        driver_name,
-        cargo_type,
-        weight,
-        origin,
-        destination,
-        scheduled_time,
-        dock_id,
-        status: 'scheduled'
+        name,
+        status
       },
-      message: 'Carregamento criado com sucesso'
+      message: 'Doca criada com sucesso'
     });
     
   } catch (error) {
-    console.error('❌ Erro ao criar carregamento:', error);
+    console.error('❌ Erro ao criar doca:', error);
     res.status(500).json({
       error: 'Erro interno do servidor',
-      message: 'Erro ao criar novo carregamento',
+      message: 'Erro ao criar nova doca',
       timestamp: new Date().toISOString()
     });
   }
 });
 
-// PUT /api/loadings/:id - Atualizar carregamento
+// PUT /api/docks/:id - Atualizar doca
 router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const {
-      truck_plate,
-      driver_name,
-      cargo_type,
-      weight,
-      origin,
-      destination,
-      scheduled_time,
-      dock_id,
-      status
-    } = req.body;
+    const { name, status } = req.body;
     
-    console.log(`📝 Atualizando carregamento ID: ${id}`);
+    console.log(`📝 Atualizando doca ID: ${id}`);
     
-    const [result] = await pool.execute(`
-      UPDATE loadings 
-      SET truck_plate = ?, driver_name = ?, cargo_type = ?, weight = ?,
-          origin = ?, destination = ?, scheduled_time = ?, dock_id = ?, status = ?
+    const [result] = await db.execute(`
+      UPDATE docks 
+      SET name = ?, status = ?
       WHERE id = ?
-    `, [truck_plate, driver_name, cargo_type, weight, origin, destination, scheduled_time, dock_id, status, id]);
+    `, [name, status, id]);
     
     if (result.affectedRows === 0) {
       return res.status(404).json({
-        error: 'Carregamento não encontrado',
-        message: `Carregamento com ID ${id} não existe`,
+        error: 'Doca não encontrada',
+        message: `Doca com ID ${id} não existe`,
         timestamp: new Date().toISOString()
       });
     }
     
-    console.log(`✅ Carregamento ${id} atualizado com sucesso`);
+    console.log(`✅ Doca ${id} atualizada com sucesso`);
     
     res.json({
       success: true,
-      message: 'Carregamento atualizado com sucesso'
+      message: 'Doca atualizada com sucesso'
     });
     
   } catch (error) {
-    console.error('❌ Erro ao atualizar carregamento:', error);
+    console.error('❌ Erro ao atualizar doca:', error);
     res.status(500).json({
       error: 'Erro interno do servidor',
-      message: 'Erro ao atualizar carregamento',
+      message: 'Erro ao atualizar doca',
       timestamp: new Date().toISOString()
     });
   }
 });
 
-// DELETE /api/loadings/:id - Deletar carregamento
+// DELETE /api/docks/:id - Deletar doca
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    console.log(`🗑️ Deletando carregamento ID: ${id}`);
+    console.log(`🗑️ Deletando doca ID: ${id}`);
     
-    const [result] = await pool.execute('DELETE FROM loadings WHERE id = ?', [id]);
+    const [result] = await db.execute('DELETE FROM docks WHERE id = ?', [id]);
     
     if (result.affectedRows === 0) {
       return res.status(404).json({
-        error: 'Carregamento não encontrado',
-        message: `Carregamento com ID ${id} não existe`,
+        error: 'Doca não encontrada',
+        message: `Doca com ID ${id} não existe`,
         timestamp: new Date().toISOString()
       });
     }
     
-    console.log(`✅ Carregamento ${id} deletado com sucesso`);
+    console.log(`✅ Doca ${id} deletada com sucesso`);
     
     res.json({
       success: true,
-      message: 'Carregamento deletado com sucesso'
+      message: 'Doca deletada com sucesso'
     });
     
   } catch (error) {
-    console.error('❌ Erro ao deletar carregamento:', error);
+    console.error('❌ Erro ao deletar doca:', error);
     res.status(500).json({
       error: 'Erro interno do servidor',
-      message: 'Erro ao deletar carregamento',
+      message: 'Erro ao deletar doca',
       timestamp: new Date().toISOString()
     });
   }
