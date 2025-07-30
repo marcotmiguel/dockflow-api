@@ -159,7 +159,7 @@ const Users = {
   loadUsersList: async function() {
     try {
       const usersResponse = await Auth.fetchAuth(`${app.API_URL}/users`);
-      this.displayUsersList(usersResponse);
+      this.displayUsersList(usersResponse.data || usersResponse);
       this.updateStatusCounts(usersResponse);
       this.allUsers = usersResponse;
     } catch (error) {
