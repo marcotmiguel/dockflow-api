@@ -1,13 +1,13 @@
 const express = require('express');
 const router = express.Router();
-const pool = require('../database/index');
+const { db } = require('../database');
 
 // GET /api/docks - Listar todas as docas
 router.get('/', async (req, res) => {
   try {
     console.log('📋 Buscando lista de docas...');
     
-    const [rows] = await pool.execute(`
+    const [rows] = await db.execute(`
       SELECT 
         id,
         name,
@@ -42,7 +42,7 @@ router.get('/:id', async (req, res) => {
     const { id } = req.params;
     console.log(`🔍 Buscando doca ID: ${id}`);
     
-    const [rows] = await pool.execute(`
+    const [rows] = await db.execute(`
       SELECT 
         id,
         name,
@@ -94,7 +94,7 @@ router.post('/', async (req, res) => {
       });
     }
     
-    const [result] = await pool.execute(`
+    const [result] = await db.execute(`
       INSERT INTO docks (name, status)
       VALUES (?, ?)
     `, [name, status]);
@@ -129,7 +129,7 @@ router.put('/:id', async (req, res) => {
     
     console.log(`📝 Atualizando doca ID: ${id}`);
     
-    const [result] = await pool.execute(`
+    const [result] = await db.execute(`
       UPDATE docks 
       SET name = ?, status = ?
       WHERE id = ?
@@ -166,7 +166,7 @@ router.delete('/:id', async (req, res) => {
     const { id } = req.params;
     console.log(`🗑️ Deletando doca ID: ${id}`);
     
-    const [result] = await pool.execute('DELETE FROM docks WHERE id = ?', [id]);
+    const [result] = await db.execute('DELETE FROM docks WHERE id = ?', [id]);
     
     if (result.affectedRows === 0) {
       return res.status(404).json({
