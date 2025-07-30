@@ -1,65 +1,18 @@
-// backend/routes/userRoutes.js
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const router = express.Router();
 const { db } = require('../database');
 
-// Middleware de autenticação
-const { authMiddleware } = require('../middleware/authMiddleware');
-
-// 🧪 ROTA DE TESTE SEM AUTENTICAÇÃO (ANTES do middleware)
-router.post('/test-no-auth', (req, res) => {
-  console.log('🧪 Teste sem auth executado');
-  res.json({ 
-    message: 'Teste sem autenticação OK', 
-    timestamp: new Date(),
-    body: req.body
-  });
-});
-
-// Aplicar middleware de autenticação a todas as rotas APÓS este ponto
-router.use(authMiddleware);
-
-// 🧪 ROTA DE TESTE 1: Sem banco, com autenticação
-router.post('/test-simple', (req, res) => {
-  console.log('🧪 Teste simples executado');
-  res.json({ 
-    message: 'Teste simples OK', 
-    timestamp: new Date(),
-    body: req.body
-  });
-});
-
-// 🧪 ROTA DE TESTE 2: Com banco, com autenticação
-router.post('/test-db', async (req, res) => {
-  try {
-    console.log('🧪 Teste com banco executado');
-    
-    // Query simples para testar banco
-    const [results] = await db.execute('SELECT 1 as test');
-    
-    console.log('✅ Banco funcionando no teste');
-    res.json({ 
-      message: 'Teste com banco OK', 
-      timestamp: new Date(),
-      dbResult: results[0]
-    });
-  } catch (err) {
-    console.error('❌ Erro no teste de banco:', err);
-    res.status(500).json({ error: 'Erro no banco', details: err.message });
-  }
-});
-
 // GET /api/users - Listar todos os usuários
 router.get('/', async (req, res) => {
   try {
-    const query = `
+    console.log('📋 Buscando lista de usuários...');
+    
+    const [rows] = await db.execute(`
       SELECT 
         id, 
         name, 
         email, 
-        cpf, 
-        phone, 
         role, 
         status, 
         notes,
@@ -68,29 +21,37 @@ router.get('/', async (req, res) => {
         updated_at 
       FROM users 
       ORDER BY created_at DESC
-    `;
+    `);
     
-    const [results] = await db.execute(query);
-    res.json(results);
+    console.log(`✅ Encontrados ${rows.length} usuários`);
     
-  } catch (err) {
-    console.error('Erro ao buscar usuários:', err);
-    res.status(500).json({ error: 'Erro interno do servidor' });
+    res.json({
+      success: true,
+      data: rows,
+      count: rows.length
+    });
+    
+  } catch (error) {
+    console.error('❌ Erro ao buscar usuários:', error);
+    res.status(500).json({
+      error: 'Erro interno do servidor',
+      message: 'Erro ao buscar lista de usuários',
+      timestamp: new Date().toISOString()
+    });
   }
 });
 
 // GET /api/users/:id - Buscar usuário por ID
 router.get('/:id', async (req, res) => {
   try {
-    const userId = req.params.id;
+    const { id } = req.params;
+    console.log(`🔍 Buscando usuário ID: ${id}`);
     
-    const query = `
+    const [rows] = await db.execute(`
       SELECT 
         id, 
         name, 
         email, 
-        cpf, 
-        phone, 
         role, 
         status, 
         notes,
@@ -99,181 +60,198 @@ router.get('/:id', async (req, res) => {
         updated_at 
       FROM users 
       WHERE id = ?
-    `;
+    `, [id]);
     
-    const [results] = await db.execute(query, [userId]);
-    
-    if (results.length === 0) {
-      return res.status(404).json({ error: 'Usuário não encontrado' });
+    if (rows.length === 0) {
+      return res.status(404).json({
+        error: 'Usuário não encontrado',
+        message: `Usuário com ID ${id} não existe`,
+        timestamp: new Date().toISOString()
+      });
     }
     
-    res.json(results[0]);
+    console.log(`✅ Usuário encontrado: ${rows[0].name}`);
     
-  } catch (err) {
-    console.error('Erro ao buscar usuário:', err);
-    res.status(500).json({ error: 'Erro interno do servidor' });
+    res.json({
+      success: true,
+      data: rows[0]
+    });
+    
+  } catch (error) {
+    console.error('❌ Erro ao buscar usuário:', error);
+    res.status(500).json({
+      error: 'Erro interno do servidor',
+      message: 'Erro ao buscar usuário específico',
+      timestamp: new Date().toISOString()
+    });
   }
 });
 
 // POST /api/users - Criar novo usuário
 router.post('/', async (req, res) => {
   try {
-    const { name, email, cpf, phone, password, role, status, notes } = req.body;
+    const { name, email, password, role = 'operator', status = 'active', notes } = req.body;
+    
+    console.log('📝 Criando novo usuário:', { name, email, role });
     
     // Validações básicas
-    if (!name || !email || !cpf || !password) {
-      return res.status(400).json({ error: 'Nome, email, CPF e senha são obrigatórios' });
-    }
-    
-    if (!['admin', 'manager', 'operator'].includes(role)) {
-      return res.status(400).json({ error: 'Nível de acesso inválido' });
-    }
-    
-    if (!['active', 'inactive'].includes(status)) {
-      return res.status(400).json({ error: 'Status inválido' });
-    }
-    
-    // Validar CPF (11 dígitos)
-    const cleanCpf = cpf.replace(/\D/g, '');
-    if (cleanCpf.length !== 11) {
-      return res.status(400).json({ error: 'CPF deve ter 11 dígitos' });
+    if (!name || !email || !password) {
+      return res.status(400).json({
+        error: 'Dados obrigatórios ausentes',
+        message: 'Nome, email e senha são obrigatórios',
+        timestamp: new Date().toISOString()
+      });
     }
     
     // Validar email
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      return res.status(400).json({ error: 'Email inválido' });
+      return res.status(400).json({
+        error: 'Email inválido',
+        message: 'Formato de email inválido',
+        timestamp: new Date().toISOString()
+      });
     }
     
     // Validar senha
     if (password.length < 6) {
-      return res.status(400).json({ error: 'Senha deve ter pelo menos 6 caracteres' });
+      return res.status(400).json({
+        error: 'Senha inválida',
+        message: 'Senha deve ter pelo menos 6 caracteres',
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    // Validar role
+    if (!['operator', 'analyst', 'admin'].includes(role)) {
+      return res.status(400).json({
+        error: 'Nível de acesso inválido',
+        message: 'Use: operator, analyst ou admin',
+        timestamp: new Date().toISOString()
+      });
     }
     
     // Verificar se email já existe
-    const emailCheck = 'SELECT id FROM users WHERE email = ?';
-    const [emailResults] = await db.execute(emailCheck, [email.toLowerCase()]);
+    const [existingUsers] = await db.execute('SELECT id FROM users WHERE email = ?', [email.toLowerCase()]);
     
-    if (emailResults.length > 0) {
-      return res.status(400).json({ error: 'Este email já está em uso' });
-    }
-    
-    // Verificar se CPF já existe
-    const cpfCheck = 'SELECT id FROM users WHERE cpf = ?';
-    const [cpfResults] = await db.execute(cpfCheck, [cleanCpf]);
-    
-    if (cpfResults.length > 0) {
-      return res.status(400).json({ error: 'Este CPF já está cadastrado' });
+    if (existingUsers.length > 0) {
+      return res.status(400).json({
+        error: 'Email já cadastrado',
+        message: 'Este email já está em uso por outro usuário',
+        timestamp: new Date().toISOString()
+      });
     }
     
     // Hash da senha
     const hashedPassword = await bcrypt.hash(password, 10);
     
     // Inserir usuário
-    const insertQuery = `
-      INSERT INTO users (name, email, cpf, phone, password, role, status, notes) 
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `;
-    
-    const values = [
+    const [result] = await db.execute(`
+      INSERT INTO users (name, email, password, role, status, notes) 
+      VALUES (?, ?, ?, ?, ?, ?)
+    `, [
       name.trim(),
       email.toLowerCase().trim(),
-      cleanCpf,
-      phone ? phone.trim() : null,
       hashedPassword,
       role,
       status,
       notes ? notes.trim() : null
-    ];
+    ]);
     
-    const [result] = await db.execute(insertQuery, values);
+    console.log(`✅ Usuário criado com ID: ${result.insertId}`);
     
     res.status(201).json({
-      message: 'Usuário criado com sucesso',
-      userId: result.insertId
+      success: true,
+      data: {
+        id: result.insertId,
+        name: name.trim(),
+        email: email.toLowerCase().trim(),
+        role,
+        status,
+        notes: notes ? notes.trim() : null
+      },
+      message: 'Usuário criado com sucesso'
     });
     
   } catch (error) {
-    console.error('Erro ao processar criação de usuário:', error);
-    res.status(500).json({ error: 'Erro interno do servidor' });
+    console.error('❌ Erro ao criar usuário:', error);
+    res.status(500).json({
+      error: 'Erro interno do servidor',
+      message: 'Erro ao criar novo usuário',
+      timestamp: new Date().toISOString()
+    });
   }
 });
 
 // PUT /api/users/:id - Atualizar usuário
 router.put('/:id', async (req, res) => {
   try {
-    const userId = req.params.id;
-    const { name, email, cpf, phone, password, role, status, notes } = req.body;
+    const { id } = req.params;
+    const { name, email, password, role, status, notes } = req.body;
+    
+    console.log(`📝 Atualizando usuário ID: ${id}`);
     
     // Validações básicas
-    if (!name || !email || !cpf) {
-      return res.status(400).json({ error: 'Nome, email e CPF são obrigatórios' });
-    }
-    
-    if (!['admin', 'manager', 'operator'].includes(role)) {
-      return res.status(400).json({ error: 'Nível de acesso inválido' });
-    }
-    
-    if (!['active', 'inactive'].includes(status)) {
-      return res.status(400).json({ error: 'Status inválido' });
-    }
-    
-    // Validar CPF (11 dígitos)
-    const cleanCpf = cpf.replace(/\D/g, '');
-    if (cleanCpf.length !== 11) {
-      return res.status(400).json({ error: 'CPF deve ter 11 dígitos' });
+    if (!name || !email) {
+      return res.status(400).json({
+        error: 'Dados obrigatórios ausentes',
+        message: 'Nome e email são obrigatórios',
+        timestamp: new Date().toISOString()
+      });
     }
     
     // Validar email
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      return res.status(400).json({ error: 'Email inválido' });
+      return res.status(400).json({
+        error: 'Email inválido',
+        message: 'Formato de email inválido',
+        timestamp: new Date().toISOString()
+      });
     }
     
-    // Verificar se usuário existe
-    const userCheck = 'SELECT id FROM users WHERE id = ?';
-    const [userResults] = await db.execute(userCheck, [userId]);
-    
-    if (userResults.length === 0) {
-      return res.status(404).json({ error: 'Usuário não encontrado' });
+    // Validar role
+    if (role && !['operator', 'analyst', 'admin'].includes(role)) {
+      return res.status(400).json({
+        error: 'Nível de acesso inválido',
+        message: 'Use: operator, analyst ou admin',
+        timestamp: new Date().toISOString()
+      });
     }
     
-    // Verificar se email já existe (exceto o próprio usuário)
-    const emailCheck = 'SELECT id FROM users WHERE email = ? AND id != ?';
-    const [emailResults] = await db.execute(emailCheck, [email.toLowerCase(), userId]);
+    // Verificar se email já existe para outro usuário
+    const [existingUsers] = await db.execute('SELECT id FROM users WHERE email = ? AND id != ?', [email.toLowerCase(), id]);
     
-    if (emailResults.length > 0) {
-      return res.status(400).json({ error: 'Este email já está em uso' });
-    }
-    
-    // Verificar se CPF já existe (exceto o próprio usuário)
-    const cpfCheck = 'SELECT id FROM users WHERE cpf = ? AND id != ?';
-    const [cpfResults] = await db.execute(cpfCheck, [cleanCpf, userId]);
-    
-    if (cpfResults.length > 0) {
-      return res.status(400).json({ error: 'Este CPF já está cadastrado' });
+    if (existingUsers.length > 0) {
+      return res.status(400).json({
+        error: 'Email já cadastrado',
+        message: 'Este email já está em uso por outro usuário',
+        timestamp: new Date().toISOString()
+      });
     }
     
     // Preparar query de atualização
     let updateQuery = `
       UPDATE users 
-      SET name = ?, email = ?, cpf = ?, phone = ?, role = ?, status = ?, notes = ?
+      SET name = ?, email = ?, role = ?, status = ?, notes = ?
     `;
     
     let values = [
       name.trim(),
       email.toLowerCase().trim(),
-      cleanCpf,
-      phone ? phone.trim() : null,
-      role,
-      status,
+      role || 'operator',
+      status || 'active',
       notes ? notes.trim() : null
     ];
     
     // Se senha foi fornecida, incluir na atualização
     if (password && password.trim()) {
       if (password.length < 6) {
-        return res.status(400).json({ error: 'Senha deve ter pelo menos 6 caracteres' });
+        return res.status(400).json({
+          error: 'Senha inválida',
+          message: 'Senha deve ter pelo menos 6 caracteres',
+          timestamp: new Date().toISOString()
+        });
       }
       
       const hashedPassword = await bcrypt.hash(password, 10);
@@ -282,95 +260,145 @@ router.put('/:id', async (req, res) => {
     }
     
     updateQuery += ' WHERE id = ?';
-    values.push(userId);
+    values.push(id);
     
-    await db.execute(updateQuery, values);
+    const [result] = await db.execute(updateQuery, values);
     
-    res.json({ message: 'Usuário atualizado com sucesso' });
+    if (result.affectedRows === 0) {
+      return res.status(404).json({
+        error: 'Usuário não encontrado',
+        message: `Usuário com ID ${id} não existe`,
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    console.log(`✅ Usuário ${id} atualizado com sucesso`);
+    
+    res.json({
+      success: true,
+      message: 'Usuário atualizado com sucesso'
+    });
     
   } catch (error) {
-    console.error('Erro ao processar atualização de usuário:', error);
-    res.status(500).json({ error: 'Erro interno do servidor' });
+    console.error('❌ Erro ao atualizar usuário:', error);
+    res.status(500).json({
+      error: 'Erro interno do servidor',
+      message: 'Erro ao atualizar usuário',
+      timestamp: new Date().toISOString()
+    });
   }
 });
 
 // DELETE /api/users/:id - Excluir usuário
 router.delete('/:id', async (req, res) => {
   try {
-    const userId = req.params.id;
-    
-    // Verificar se usuário existe
-    const checkQuery = 'SELECT id, name FROM users WHERE id = ?';
-    const [results] = await db.execute(checkQuery, [userId]);
-    
-    if (results.length === 0) {
-      return res.status(404).json({ error: 'Usuário não encontrado' });
-    }
+    const { id } = req.params;
+    console.log(`🗑️ Deletando usuário ID: ${id}`);
     
     // Verificar se é o último admin
-    const adminCheckQuery = 'SELECT COUNT(*) as admin_count FROM users WHERE role = "admin" AND status = "active"';
-    const [adminResults] = await db.execute(adminCheckQuery);
-    
-    const adminCount = adminResults[0].admin_count;
+    const [adminCount] = await db.execute('SELECT COUNT(*) as count FROM users WHERE role = "admin" AND status = "active"');
     
     // Verificar se o usuário a ser excluído é admin
-    const userRoleQuery = 'SELECT role FROM users WHERE id = ?';
-    const [roleResults] = await db.execute(userRoleQuery, [userId]);
+    const [userRole] = await db.execute('SELECT role FROM users WHERE id = ?', [id]);
     
-    if (roleResults[0].role === 'admin' && adminCount <= 1) {
-      return res.status(400).json({ error: 'Não é possível excluir o último administrador do sistema' });
+    if (userRole.length > 0 && userRole[0].role === 'admin' && adminCount[0].count <= 1) {
+      return res.status(400).json({
+        error: 'Operação não permitida',
+        message: 'Não é possível excluir o último administrador do sistema',
+        timestamp: new Date().toISOString()
+      });
     }
     
     // Excluir usuário
-    const deleteQuery = 'DELETE FROM users WHERE id = ?';
-    await db.execute(deleteQuery, [userId]);
+    const [result] = await db.execute('DELETE FROM users WHERE id = ?', [id]);
     
-    res.json({ message: 'Usuário excluído com sucesso' });
+    if (result.affectedRows === 0) {
+      return res.status(404).json({
+        error: 'Usuário não encontrado',
+        message: `Usuário com ID ${id} não existe`,
+        timestamp: new Date().toISOString()
+      });
+    }
     
-  } catch (err) {
-    console.error('Erro ao excluir usuário:', err);
-    res.status(500).json({ error: 'Erro interno do servidor' });
+    console.log(`✅ Usuário ${id} excluído com sucesso`);
+    
+    res.json({
+      success: true,
+      message: 'Usuário excluído com sucesso'
+    });
+    
+  } catch (error) {
+    console.error('❌ Erro ao excluir usuário:', error);
+    res.status(500).json({
+      error: 'Erro interno do servidor',
+      message: 'Erro ao excluir usuário',
+      timestamp: new Date().toISOString()
+    });
   }
 });
 
 // POST /api/users/:id/reset-password - Resetar senha
 router.post('/:id/reset-password', async (req, res) => {
   try {
-    const userId = req.params.id;
+    const { id } = req.params;
     const { password } = req.body;
     
+    console.log(`🔐 Resetando senha do usuário ID: ${id}`);
+    
     if (!password || password.length < 6) {
-      return res.status(400).json({ error: 'Nova senha deve ter pelo menos 6 caracteres' });
+      return res.status(400).json({
+        error: 'Senha inválida',
+        message: 'Nova senha deve ter pelo menos 6 caracteres',
+        timestamp: new Date().toISOString()
+      });
     }
     
     // Verificar se usuário existe
-    const userCheck = 'SELECT id, name FROM users WHERE id = ?';
-    const [results] = await db.execute(userCheck, [userId]);
+    const [userExists] = await db.execute('SELECT id, name FROM users WHERE id = ?', [id]);
     
-    if (results.length === 0) {
-      return res.status(404).json({ error: 'Usuário não encontrado' });
+    if (userExists.length === 0) {
+      return res.status(404).json({
+        error: 'Usuário não encontrado',
+        message: `Usuário com ID ${id} não existe`,
+        timestamp: new Date().toISOString()
+      });
     }
     
     // Hash da nova senha
     const hashedPassword = await bcrypt.hash(password, 10);
     
     // Atualizar senha
-    const updateQuery = 'UPDATE users SET password = ? WHERE id = ?';
-    await db.execute(updateQuery, [hashedPassword, userId]);
+    await db.execute('UPDATE users SET password = ? WHERE id = ?', [hashedPassword, id]);
     
-    res.json({ message: 'Senha resetada com sucesso' });
+    console.log(`✅ Senha do usuário ${id} resetada com sucesso`);
+    
+    res.json({
+      success: true,
+      message: 'Senha resetada com sucesso'
+    });
     
   } catch (error) {
-    console.error('Erro ao processar reset de senha:', error);
-    res.status(500).json({ error: 'Erro interno do servidor' });
+    console.error('❌ Erro ao resetar senha:', error);
+    res.status(500).json({
+      error: 'Erro interno do servidor',
+      message: 'Erro ao resetar senha',
+      timestamp: new Date().toISOString()
+    });
   }
 });
 
 // GET /api/users/:id/actions - Buscar ações do usuário (placeholder)
 router.get('/:id/actions', (req, res) => {
+  console.log(`📋 Buscando ações do usuário ID: ${req.params.id}`);
+  
   // Por enquanto retorna array vazio
   // Futuramente pode implementar log de auditoria
-  res.json([]);
+  res.json({
+    success: true,
+    data: [],
+    count: 0,
+    message: 'Log de auditoria será implementado futuramente'
+  });
 });
 
 module.exports = router;
