@@ -82,8 +82,8 @@ const Drivers = {
   loadDriversList: async function() {
     try {
       const driversResponse = await Auth.fetchAuth(`${app.API_URL}/drivers`);
-      this.displayDriversList(driversResponse);
-      this.allDrivers = driversResponse;
+      this.displayDriversList(driversResponse.data);
+      this.allDrivers = driversResponse.data;
     } catch (error) {
       console.error('Erro ao carregar motoristas:', error);
       this.showDriversError('Erro ao carregar lista de motoristas');
