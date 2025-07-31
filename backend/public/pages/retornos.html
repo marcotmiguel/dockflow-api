@@ -1,81 +1,190 @@
-<div class="retornos-page">
-  <!-- Container de alertas -->
-  <div id="alert-container"></div>
-  
-  <!-- Estatísticas dos Retornos -->
-  <div class="row mb-4">
-    <div class="col-md-3">
-      <div class="card stat-card" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); color: white;">
-        <div class="card-body text-center">
-          <i class="fas fa-hourglass-half fa-2x mb-2"></i>
-          <h4 id="aguardando-count">0</h4>
-          <small>Aguardando Chegada</small>
-        </div>
-      </div>
-    </div>
-    <div class="col-md-3">
-      <div class="card stat-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white;">
-        <div class="card-body text-center">
-          <i class="fas fa-barcode fa-2x mb-2"></i>
-          <h4 id="bipando-count">0</h4>
-          <small>Bipando</small>
-        </div>
-      </div>
-    </div>
-    <div class="col-md-3">
-      <div class="card stat-card" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); color: white;">
-        <div class="card-body text-center">
-          <i class="fas fa-check-double fa-2x mb-2"></i>
-          <h4 id="conferido-count">0</h4>
-          <small>Conferido</small>
-        </div>
-      </div>
-    </div>
-    <div class="col-md-3">
-      <div class="card stat-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white;">
-        <div class="card-body text-center">
-          <i class="fas fa-boxes fa-2x mb-2"></i>
-          <h4 id="total-itens-retornados">0</h4>
-          <small>Itens Hoje</small>
-        </div>
+<!-- Estatísticas dos Retornos -->
+<div class="row mb-4">
+  <div class="col-md-3">
+    <div class="card stat-card" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); color: white;">
+      <div class="card-body text-center">
+        <i class="fas fa-hourglass-half fa-2x mb-2"></i>
+        <h4 id="aguardando-count">1</h4>
+        <small>Aguardando Chegada</small>
       </div>
     </div>
   </div>
-  
-  <!-- Controles dos Retornos -->
-  <div class="row mb-3">
-    <div class="col-md-8">
-      <div class="btn-group" role="group">
-        <button type="button" class="btn btn-outline-primary" id="refresh-retornos">
-          <i class="fas fa-sync-alt"></i> Atualizar
-        </button>
-        <button type="button" class="btn btn-outline-success" id="registrar-retorno-btn" data-bs-toggle="modal" data-bs-target="#registrarRetornoModal">
-          <i class="fas fa-plus"></i> Registrar Retorno
-        </button>
-      </div>
-    </div>
-    <div class="col-md-4">
-      <div class="input-group">
-        <input type="text" class="form-control" id="search-retornos" placeholder="Buscar retornos...">
-        <button class="btn btn-outline-secondary" type="button">
-          <i class="fas fa-search"></i>
-        </button>
+  <div class="col-md-3">
+    <div class="card stat-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white;">
+      <div class="card-body text-center">
+        <i class="fas fa-barcode fa-2x mb-2"></i>
+        <h4 id="bipando-count">1</h4>
+        <small>Bipando</small>
       </div>
     </div>
   </div>
-  
-  <!-- Lista de Retornos -->
-  <div class="card shadow-sm">
-    <div class="card-header bg-light">
-      <h5 class="mb-0">
-        <i class="fas fa-undo"></i> Retornos de Carga
-      </h5>
+  <div class="col-md-3">
+    <div class="card stat-card" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); color: white;">
+      <div class="card-body text-center">
+        <i class="fas fa-check-double fa-2x mb-2"></i>
+        <h4 id="conferido-count">1</h4>
+        <small>Conferido</small>
+      </div>
     </div>
-    <div class="card-body">
-      <div id="retornos-container">
-        <div class="text-center py-4">
-          <div class="spinner-border text-primary" role="status">
-            <span class="visually-hidden">Carregando retornos...</span>
+  </div>
+  <div class="col-md-3">
+    <div class="card stat-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white;">
+      <div class="card-body text-center">
+        <i class="fas fa-boxes fa-2x mb-2"></i>
+        <h4 id="total-itens-retornados">3</h4>
+        <small>Itens Hoje</small>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Controles dos Retornos -->
+<div class="row mb-3">
+  <div class="col-md-8">
+    <div class="btn-group" role="group">
+      <button type="button" class="btn btn-outline-primary" onclick="atualizarRetornos()">
+        <i class="fas fa-sync-alt"></i> Atualizar
+      </button>
+      <button type="button" class="btn btn-outline-success" onclick="mostrarModalRegistro()">
+        <i class="fas fa-plus"></i> Registrar Retorno
+      </button>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="input-group">
+      <input type="text" class="form-control" id="search-retornos" placeholder="Buscar retornos..." onkeyup="filtrarRetornos(this.value)">
+      <button class="btn btn-outline-secondary" type="button">
+        <i class="fas fa-search"></i>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Lista de Retornos -->
+<div class="card shadow-sm">
+  <div class="card-header bg-light">
+    <h5 class="mb-0">
+      <i class="fas fa-undo"></i> Retornos de Carga
+    </h5>
+  </div>
+  <div class="card-body">
+    <div id="retornos-container">
+      <!-- João Silva - Aguardando -->
+      <div class="card mb-3 retorno-item" style="border-left: 4px solid #ffc107;" data-nome="joao silva abc1234">
+        <div class="card-body">
+          <div class="row align-items-center">
+            <div class="col-md-3">
+              <h6 class="mb-1">
+                <i class="fas fa-user"></i> João Silva
+              </h6>
+              <small class="text-muted">CPF: 123.456.789-01</small>
+              <br>
+              <small class="text-muted">Placa: ABC1234</small>
+            </div>
+            <div class="col-md-2">
+              <i class="fas fa-route"></i> SP-CENTRO
+              <br>
+              <small class="text-muted">São Paulo Centro</small>
+            </div>
+            <div class="col-md-2">
+              <span class="badge bg-warning">
+                Aguardando Chegada
+              </span>
+              <br>
+              <small class="text-muted">Agora mesmo</small>
+            </div>
+            <div class="col-md-2">
+              <i class="fas fa-boxes"></i> 0 itens
+              <br>
+              <small class="text-muted">bipados</small>
+            </div>
+            <div class="col-md-3 text-end">
+              <button class="btn btn-sm btn-primary me-1" onclick="iniciarBipagem(1, 'João Silva')">
+                <i class="fas fa-barcode"></i> Iniciar Bipagem
+              </button>
+              <button class="btn btn-sm btn-danger" onclick="cancelarRetorno(1, 'João Silva')">
+                <i class="fas fa-times"></i> Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Maria Santos - Bipando -->
+      <div class="card mb-3 retorno-item" style="border-left: 4px solid #007bff;" data-nome="maria santos xyz5678">
+        <div class="card-body">
+          <div class="row align-items-center">
+            <div class="col-md-3">
+              <h6 class="mb-1">
+                <i class="fas fa-user"></i> Maria Santos
+              </h6>
+              <small class="text-muted">CPF: 987.654.321-09</small>
+              <br>
+              <small class="text-muted">Placa: XYZ5678</small>
+            </div>
+            <div class="col-md-2">
+              <i class="fas fa-route"></i> SP-SUL
+              <br>
+              <small class="text-muted">São Paulo Zona Sul</small>
+            </div>
+            <div class="col-md-2">
+              <span class="badge bg-primary">
+                Bipando
+              </span>
+              <br>
+              <small class="text-muted">1h atrás</small>
+            </div>
+            <div class="col-md-2">
+              <i class="fas fa-boxes"></i> 1 itens
+              <br>
+              <small class="text-muted">bipados</small>
+            </div>
+            <div class="col-md-3 text-end">
+              <button class="btn btn-sm btn-success me-1" onclick="continuarBipagem(2, 'Maria Santos')">
+                <i class="fas fa-barcode"></i> Continuar Bipagem
+              </button>
+              <button class="btn btn-sm btn-warning" onclick="finalizarConferencia(2, 'Maria Santos')">
+                <i class="fas fa-check"></i> Finalizar
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pedro Oliveira - Conferido -->
+      <div class="card mb-3 retorno-item" style="border-left: 4px solid #28a745;" data-nome="pedro oliveira def5678">
+        <div class="card-body">
+          <div class="row align-items-center">
+            <div class="col-md-3">
+              <h6 class="mb-1">
+                <i class="fas fa-user"></i> Pedro Oliveira
+              </h6>
+              <small class="text-muted">CPF: 111.222.333-44</small>
+              <br>
+              <small class="text-muted">Placa: DEF5678</small>
+            </div>
+            <div class="col-md-2">
+              <i class="fas fa-route"></i> SP-NORTE
+              <br>
+              <small class="text-muted">São Paulo Zona Norte</small>
+            </div>
+            <div class="col-md-2">
+              <span class="badge bg-success">
+                Conferido
+              </span>
+              <br>
+              <small class="text-muted">2h atrás</small>
+            </div>
+            <div class="col-md-2">
+              <i class="fas fa-boxes"></i> 2 itens
+              <br>
+              <small class="text-muted">bipados</small>
+            </div>
+            <div class="col-md-3 text-end">
+              <small class="text-success">
+                <i class="fas fa-check-circle"></i> Conferido
+              </small>
+            </div>
           </div>
         </div>
       </div>
@@ -84,12 +193,6 @@
 </div>
 
 <style>
-/* Estilos específicos para retornos */
-.status-aguardando { border-left: 4px solid #ffc107; }
-.status-bipando { border-left: 4px solid #007bff; }
-.status-conferido { border-left: 4px solid #28a745; }
-.status-cancelado { border-left: 4px solid #dc3545; }
-
 .retorno-item {
   transition: all 0.3s ease;
 }
@@ -98,186 +201,60 @@
   transform: translateY(-2px);
   box-shadow: 0 4px 8px rgba(0,0,0,0.1);
 }
-
-.barcode-input {
-  font-family: 'Courier New', monospace;
-  font-size: 1.1em;
-}
 </style>
 
 <script>
-console.log('📄 Página retornos.html carregada');
+console.log('🚀 Sistema de retornos carregado diretamente!');
 
-// Função para inicializar retornos
-function initRetornos() {
-  console.log('🔄 Tentando inicializar retornos...');
+// Funções básicas
+function atualizarRetornos() {
+  console.log('🔄 Atualizando retornos...');
+  // Simular atualização
+  alert('Retornos atualizados!');
+}
+
+function mostrarModalRegistro() {
+  alert('Modal de registro de retorno\n\nEm breve: formulário para registrar novo retorno manualmente.');
+}
+
+function iniciarBipagem(id, nome) {
+  console.log('🔥 Iniciando bipagem para:', nome);
+  alert(`Iniciando bipagem para ${nome}\n\nEm breve: modal de bipagem com scanner de código de barras.`);
+}
+
+function continuarBipagem(id, nome) {
+  console.log('📦 Continuando bipagem para:', nome);
+  alert(`Continuando bipagem para ${nome}\n\nEm breve: modal mostrando itens já bipados e permitindo adicionar mais.`);
+}
+
+function finalizarConferencia(id, nome) {
+  if (confirm(`Finalizar conferência de ${nome}?\n\nTodos os itens bipados serão considerados conferidos.`)) {
+    console.log('✅ Conferência finalizada para:', nome);
+    alert(`Conferência de ${nome} finalizada com sucesso!`);
+  }
+}
+
+function cancelarRetorno(id, nome) {
+  const motivo = prompt(`Cancelar retorno de ${nome}\n\nMotivo do cancelamento:`);
+  if (motivo) {
+    console.log('❌ Retorno cancelado:', nome, 'Motivo:', motivo);
+    alert(`Retorno de ${nome} cancelado.\nMotivo: ${motivo}`);
+  }
+}
+
+function filtrarRetornos(termo) {
+  const items = document.querySelectorAll('.retorno-item');
+  const termoBusca = termo.toLowerCase();
   
-  if (window.RetornosDashboard) {
-    console.log('✅ RetornosDashboard encontrado, inicializando...');
-    window.RetornosDashboard.init();
-  } else {
-    console.log('⚠️ RetornosDashboard não encontrado, criando nova instância...');
-    
-    // Tentar carregar o módulo primeiro
-    if (typeof RetornosDashboard !== 'undefined') {
-      window.RetornosDashboard = new RetornosDashboard();
-      window.RetornosDashboard.init();
+  items.forEach(item => {
+    const nome = item.getAttribute('data-nome');
+    if (nome.includes(termoBusca)) {
+      item.style.display = 'block';
     } else {
-      console.log('📦 Carregando dados locais diretamente...');
-      // Inicializar dados locais diretamente se o módulo não estiver disponível
-      loadLocalRetornosData();
+      item.style.display = 'none';
     }
-  }
+  });
+  
+  console.log('🔍 Filtro aplicado:', termo);
 }
-
-// Função para carregar dados locais diretamente
-function loadLocalRetornosData() {
-  console.log('💾 Carregando dados locais diretamente...');
-  
-  // Dados de exemplo
-  const retornos = [
-    {
-      id: 1,
-      driver_name: 'João Silva',
-      driver_cpf: '12345678901',
-      vehicle_plate: 'ABC1234',
-      route_code: 'SP-CENTRO',
-      route_description: 'São Paulo Centro',
-      status: 'aguardando_chegada',
-      created_at: new Date().toISOString(),
-      itens_retornados: null
-    },
-    {
-      id: 2,
-      driver_name: 'Maria Santos',
-      driver_cpf: '98765432109',
-      vehicle_plate: 'XYZ5678',
-      route_code: 'SP-SUL',
-      route_description: 'São Paulo Zona Sul',
-      status: 'bipando',
-      created_at: new Date(Date.now() - 3600000).toISOString(),
-      itens_retornados: '[{"codigo_barras":"123456","produto_nome":"Produto A","quantidade":1}]'
-    },
-    {
-      id: 3,
-      driver_name: 'Pedro Oliveira',
-      driver_cpf: '11122233344',
-      vehicle_plate: 'DEF5678',
-      route_code: 'SP-NORTE',
-      route_description: 'São Paulo Zona Norte',
-      status: 'conferido',
-      created_at: new Date(Date.now() - 7200000).toISOString(),
-      itens_retornados: '[{"codigo_barras":"789012","produto_nome":"Produto B","quantidade":2}]'
-    }
-  ];
-  
-  const stats = {
-    aguardando_chegada: 1,
-    bipando: 1,
-    conferido: 1,
-    total_itens_retornados: 3
-  };
-  
-  // Atualizar estatísticas
-  document.getElementById('aguardando-count').textContent = stats.aguardando_chegada;
-  document.getElementById('bipando-count').textContent = stats.bipando;
-  document.getElementById('conferido-count').textContent = stats.conferido;
-  document.getElementById('total-itens-retornados').textContent = stats.total_itens_retornados;
-  
-  // Renderizar retornos
-  const container = document.getElementById('retornos-container');
-  if (container) {
-    const html = retornos.map(retorno => {
-      const statusText = {
-        'aguardando_chegada': 'Aguardando Chegada',
-        'bipando': 'Bipando',
-        'conferido': 'Conferido'
-      }[retorno.status];
-      
-      const statusColor = {
-        'aguardando_chegada': 'warning',
-        'bipando': 'primary',
-        'conferido': 'success'
-      }[retorno.status];
-      
-      const statusClass = {
-        'aguardando_chegada': 'status-aguardando',
-        'bipando': 'status-bipando',
-        'conferido': 'status-conferido'
-      }[retorno.status];
-      
-      const itensBipados = retorno.itens_retornados ? JSON.parse(retorno.itens_retornados).length : 0;
-      
-      return `
-        <div class="card mb-3 retorno-item ${statusClass}" data-id="${retorno.id}">
-          <div class="card-body">
-            <div class="row align-items-center">
-              <div class="col-md-3">
-                <h6 class="mb-1">
-                  <i class="fas fa-user"></i> ${retorno.driver_name}
-                </h6>
-                <small class="text-muted">CPF: ${retorno.driver_cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')}</small>
-                <br>
-                <small class="text-muted">Placa: ${retorno.vehicle_plate}</small>
-              </div>
-              <div class="col-md-2">
-                <i class="fas fa-route"></i> ${retorno.route_code}
-                <br>
-                <small class="text-muted">${retorno.route_description}</small>
-              </div>
-              <div class="col-md-2">
-                <span class="badge bg-${statusColor}">
-                  ${statusText}
-                </span>
-                <br>
-                <small class="text-muted">Agora mesmo</small>
-              </div>
-              <div class="col-md-2">
-                <i class="fas fa-boxes"></i> ${itensBipados} itens
-                <br>
-                <small class="text-muted">bipados</small>
-              </div>
-              <div class="col-md-3 text-end">
-                ${retorno.status === 'aguardando_chegada' ? `
-                  <button class="btn btn-sm btn-primary me-1">
-                    <i class="fas fa-barcode"></i> Iniciar Bipagem
-                  </button>
-                  <button class="btn btn-sm btn-danger">
-                    <i class="fas fa-times"></i> Cancelar
-                  </button>
-                ` : retorno.status === 'bipando' ? `
-                  <button class="btn btn-sm btn-success me-1">
-                    <i class="fas fa-barcode"></i> Continuar Bipagem
-                  </button>
-                  <button class="btn btn-sm btn-warning">
-                    <i class="fas fa-check"></i> Finalizar
-                  </button>
-                ` : `
-                  <small class="text-success">
-                    <i class="fas fa-check-circle"></i> Conferido
-                  </small>
-                `}
-              </div>
-            </div>
-          </div>
-        </div>
-      `;
-    }).join('');
-    
-    container.innerHTML = html;
-    console.log('✅ Retornos renderizados com sucesso!');
-  }
-}
-
-// Tentar inicializar imediatamente
-initRetornos();
-
-// Tentar novamente após 100ms
-setTimeout(initRetornos, 100);
-
-// E mais uma vez após 500ms para garantir
-setTimeout(initRetornos, 500);
-
-// Também tentar quando o DOM estiver pronto
-document.addEventListener('DOMContentLoaded', initRetornos);
 </script>
