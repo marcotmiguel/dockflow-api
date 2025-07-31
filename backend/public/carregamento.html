@@ -42,6 +42,12 @@
         .status-completed { border-left: 4px solid #28a745; }
         .status-cancelled { border-left: 4px solid #dc3545; }
         
+        /* Estilos para retornos */
+        .status-aguardando { border-left: 4px solid #ffc107; }
+        .status-bipando { border-left: 4px solid #007bff; }
+        .status-conferido { border-left: 4px solid #28a745; }
+        .status-cancelado { border-left: 4px solid #dc3545; }
+        
         .barcode-input {
             font-family: 'Courier New', monospace;
             font-size: 1.1em;
@@ -64,6 +70,11 @@
         
         .stats-card-4 {
             background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+            color: white;
+        }
+        
+        .stats-card-5 {
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
             color: white;
         }
     </style>
@@ -149,6 +160,11 @@
                 </button>
             </li>
             <li class="nav-item" role="presentation">
+                <button class="nav-link" id="retornos-tab" data-bs-toggle="tab" data-bs-target="#retornos" type="button" role="tab">
+                    <i class="fas fa-undo"></i> Retornos de Carga
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
                 <button class="nav-link" id="routes-tab" data-bs-toggle="tab" data-bs-target="#routes" type="button" role="tab">
                     <i class="fas fa-route"></i> Rotas
                 </button>
@@ -176,6 +192,89 @@
                             <div class="text-center py-4">
                                 <div class="spinner-border text-primary" role="status">
                                     <span class="visually-hidden">Carregando...</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Aba Retornos de Carga -->
+            <div class="tab-pane fade" id="retornos" role="tabpanel" data-module="retornos">
+                <!-- Estatísticas dos Retornos -->
+                <div class="row mb-4">
+                    <div class="col-md-3">
+                        <div class="card stats-card-5">
+                            <div class="card-body text-center">
+                                <i class="fas fa-hourglass-half fa-2x mb-2"></i>
+                                <h4 id="aguardando-count">0</h4>
+                                <small>Aguardando Chegada</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card stats-card-3">
+                            <div class="card-body text-center">
+                                <i class="fas fa-barcode fa-2x mb-2"></i>
+                                <h4 id="bipando-count">0</h4>
+                                <small>Bipando</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card stats-card-4">
+                            <div class="card-body text-center">
+                                <i class="fas fa-check-double fa-2x mb-2"></i>
+                                <h4 id="conferido-count">0</h4>
+                                <small>Conferido</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card stats-card-2">
+                            <div class="card-body text-center">
+                                <i class="fas fa-boxes fa-2x mb-2"></i>
+                                <h4 id="total-itens-retornados">0</h4>
+                                <small>Itens Hoje</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Controles dos Retornos -->
+                <div class="row mb-3">
+                    <div class="col-md-8">
+                        <div class="btn-group" role="group">
+                            <button type="button" class="btn btn-outline-primary" id="refresh-retornos">
+                                <i class="fas fa-sync-alt"></i> Atualizar
+                            </button>
+                            <button type="button" class="btn btn-outline-success" id="registrar-retorno-btn">
+                                <i class="fas fa-plus"></i> Registrar Retorno
+                            </button>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="search-retornos" placeholder="Buscar retornos...">
+                            <button class="btn btn-outline-secondary" type="button">
+                                <i class="fas fa-search"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Lista de Retornos -->
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-undo"></i> Retornos de Carga
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="retornos-container">
+                            <div class="text-center py-4">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Carregando retornos...</span>
                                 </div>
                             </div>
                         </div>
@@ -216,6 +315,112 @@
                             </div>
                         </div>
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal Registrar Retorno -->
+    <div class="modal fade" id="registrarRetornoModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-plus"></i> Registrar Retorno de Carga
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="registrar-retorno-form">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="retorno-cpf" class="form-label">CPF do Motorista *</label>
+                            <input type="text" class="form-control" id="retorno-cpf" placeholder="000.000.000-00" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="retorno-nome" class="form-label">Nome do Motorista *</label>
+                            <input type="text" class="form-control" id="retorno-nome" placeholder="Nome completo" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="retorno-placa" class="form-label">Placa do Veículo *</label>
+                            <input type="text" class="form-control" id="retorno-placa" placeholder="ABC1234" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="retorno-telefone" class="form-label">Telefone</label>
+                            <input type="text" class="form-control" id="retorno-telefone" placeholder="(11) 99999-9999">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-save"></i> Registrar Retorno
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal Bipagem de Retorno -->
+    <div class="modal fade" id="bipagemModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-barcode"></i> Bipagem de Retorno
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <!-- Área de Bipagem -->
+                        <div class="col-md-4">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0">Scanner / Código de Barras</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label for="codigo-barras" class="form-label">Código de Barras *</label>
+                                        <input type="text" class="form-control barcode-input" id="codigo-barras" 
+                                               placeholder="Digite ou escaneie..." autofocus>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="produto-nome" class="form-label">Nome do Produto</label>
+                                        <input type="text" class="form-control" id="produto-nome" 
+                                               placeholder="Produto (opcional)">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="quantidade" class="form-label">Quantidade</label>
+                                        <input type="number" class="form-control" id="quantidade" value="1" min="1">
+                                    </div>
+                                    <button type="button" class="btn btn-primary w-100" id="bipar-item-btn">
+                                        <i class="fas fa-barcode"></i> Bipar Item
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Lista de Itens Bipados -->
+                        <div class="col-md-8">
+                            <div class="card">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <h6 class="mb-0">Itens Bipados</h6>
+                                    <span class="badge bg-success" id="total-itens-bipados">0 itens</span>
+                                </div>
+                                <div class="card-body">
+                                    <div id="itens-bipados-list" style="max-height: 400px; overflow-y: auto;">
+                                        <!-- Lista será preenchida dinamicamente -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                    <button type="button" class="btn btn-success" onclick="Retornos.finalizarConferencia(Retornos.retornoAtual)">
+                        <i class="fas fa-check"></i> Finalizar Conferência
+                    </button>
                 </div>
             </div>
         </div>
@@ -341,6 +546,9 @@
     
     <!-- APIs -->
     <script src="js/api/carregamentos-api.js"></script>
+    
+    <!-- Módulo de Retornos -->
+    <script src="js/modules/retornos.js"></script>
     
     <!-- Módulo Principal de Carregamentos -->
     <script>
