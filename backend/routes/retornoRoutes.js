@@ -34,6 +34,39 @@ router.get('/', async (req, res) => {
     }
 });
 
+// GET /api/retornos/:id - Buscar retorno específico
+router.get('/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        console.log(`🔍 GET /api/retornos/${id} - Buscando retorno específico`);
+        
+        const [result] = await db.execute('SELECT * FROM retornos_carga WHERE id = ?', [id]);
+        
+        if (result.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Retorno não encontrado'
+            });
+        }
+        
+        console.log(`✅ Retorno ${id} encontrado`);
+        
+        res.json({
+            success: true,
+            data: result[0]
+        });
+        
+    } catch (error) {
+        console.error('❌ Erro ao buscar retorno:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erro interno do servidor',
+            error: error.message
+        });
+    }
+});
+
 // GET /api/retornos/stats - Estatísticas dos retornos
 router.get('/stats', async (req, res) => {
     try {
