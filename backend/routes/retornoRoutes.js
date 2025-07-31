@@ -6,99 +6,22 @@ const { db } = require('../database');
 
 // ===== ENDPOINTS PARA RETORNOS DE CARGA =====
 
-// GET /api/retornos - Listar todos os retornos
+// GET /api/retornos - Listar todos os retornos (versão simplificada)
 router.get('/', async (req, res) => {
     try {
         console.log('📋 GET /api/retornos - Buscando retornos');
         
-        const { status, motorista, data_inicio, data_fim, page = 1, limit = 50 } = req.query;
+        // Query mais simples possível
+        const query = 'SELECT * FROM retornos_carga ORDER BY created_at DESC LIMIT 50';
         
-        // Query simples sem JOIN com routes até verificarmos a estrutura
-        let query = `
-            SELECT 
-                r.*,
-                c.numero_nf,
-                c.destinatario,
-                c.route_id
-            FROM retornos_carga r
-            LEFT JOIN carregamentos c ON r.carregamento_id = c.id
-            WHERE 1=1
-        `;
-        let params = [];
-        
-        // Filtros
-        if (status) {
-            query += ' AND r.status = ?';
-            params.push(status);
-        }
-        
-        if (motorista) {
-            query += ' AND (r.driver_name LIKE ? OR r.driver_cpf LIKE ?)';
-            params.push(`%${motorista}%`, `%${motorista}%`);
-        }
-        
-        if (data_inicio) {
-            query += ' AND DATE(r.created_at) >= ?';
-            params.push(data_inicio);
-        }
-        
-        if (data_fim) {
-            query += ' AND DATE(r.created_at) <= ?';
-            params.push(data_fim);
-        }
-        
-        // Ordenação e paginação
-        query += ' ORDER BY r.created_at DESC';
-        
-        const offset = (page - 1) * limit;
-        query += ' LIMIT ? OFFSET ?';
-        params.push(parseInt(limit), parseInt(offset));
-        
-        const [retornos] = await db.execute(query, params);
-        
-        // Contar total para paginação
-        let countQuery = `
-            SELECT COUNT(*) as total 
-            FROM retornos_carga r
-            LEFT JOIN carregamentos c ON r.carregamento_id = c.id
-            WHERE 1=1
-        `;
-        let countParams = [];
-        
-        if (status) {
-            countQuery += ' AND r.status = ?';
-            countParams.push(status);
-        }
-        
-        if (motorista) {
-            countQuery += ' AND (r.driver_name LIKE ? OR r.driver_cpf LIKE ?)';
-            countParams.push(`%${motorista}%`, `%${motorista}%`);
-        }
-        
-        if (data_inicio) {
-            countQuery += ' AND DATE(r.created_at) >= ?';
-            countParams.push(data_inicio);
-        }
-        
-        if (data_fim) {
-            countQuery += ' AND DATE(r.created_at) <= ?';
-            countParams.push(data_fim);
-        }
-        
-        const [countResult] = await db.execute(countQuery, countParams);
-        const total = countResult[0].total;
+        const [retornos] = await db.execute(query);
         
         console.log(`✅ ${retornos.length} retornos encontrados`);
         
         res.json({
             success: true,
             data: retornos,
-            pagination: {
-                page: parseInt(page),
-                limit: parseInt(limit),
-                total: total,
-                pages: Math.ceil(total / limit)
-            }
+            count: retornos.length
         });
         
     } catch (error) {
@@ -116,40 +39,20 @@ router.get('/stats', async (req, res) => {
     try {
         console.log('📊 GET /api/retornos/stats - Buscando estatísticas');
         
+        // Queries mais simples
+        const [aguardandoResult] = await db.execute('SELECT COUNT(*) as count FROM retornos_carga WHERE status = ?', ['aguardando_chegada']);
+        const [bipandoResult] = await db.execute('SELECT COUNT(*) as count FROM retornos_carga WHERE status = ?', ['bipando']);
+        const [conferidoResult] = await db.execute('SELECT COUNT(*) as count FROM retornos_carga WHERE status = ?', ['conferido']);
+        
         const hoje = new Date().toISOString().split('T')[0];
-        
-        const queries = {
-            aguardando: 'SELECT COUNT(*) as count FROM retornos_carga WHERE status = "aguardando_chegada"',
-            bipando: 'SELECT COUNT(*) as count FROM retornos_carga WHERE status = "bipando"',
-            conferido: 'SELECT COUNT(*) as count FROM retornos_carga WHERE status = "conferido"',
-            hoje: 'SELECT COUNT(*) as count FROM retornos_carga WHERE DATE(created_at) = ? AND status = "conferido"',
-            itens: `
-                SELECT COALESCE(SUM(
-                    JSON_LENGTH(
-                        CASE 
-                            WHEN JSON_VALID(itens_retornados) THEN itens_retornados 
-                            ELSE '[]' 
-                        END
-                    )
-                ), 0) as total 
-                FROM retornos_carga 
-                WHERE DATE(created_at) = ?
-            `
-        };
-        
-        // Executar todas as queries
-        const [aguardandoResult] = await db.execute(queries.aguardando);
-        const [bipandoResult] = await db.execute(queries.bipando);
-        const [conferidoResult] = await db.execute(queries.conferido);
-        const [hojeResult] = await db.execute(queries.hoje, [hoje]);
-        const [itensResult] = await db.execute(queries.itens, [hoje]);
+        const [hojeResult] = await db.execute('SELECT COUNT(*) as count FROM retornos_carga WHERE DATE(created_at) = ? AND status = ?', [hoje, 'conferido']);
         
         const stats = {
             aguardando_chegada: aguardandoResult[0].count || 0,
             bipando: bipandoResult[0].count || 0,
             conferido: conferidoResult[0].count || 0,
             conferido_hoje: hojeResult[0].count || 0,
-            total_itens_retornados: itensResult[0].total || 0
+            total_itens_retornados: 0
         };
         
         console.log('✅ Estatísticas carregadas:', stats);
@@ -169,19 +72,16 @@ router.get('/stats', async (req, res) => {
     }
 });
 
-// POST /api/retornos - Registrar retorno via WhatsApp
+// POST /api/retornos - Registrar retorno
 router.post('/', async (req, res) => {
     try {
         console.log('📝 POST /api/retornos - Registrando novo retorno');
         
         const {
-            carregamento_id,
             driver_cpf,
             driver_name,
             vehicle_plate,
-            phone_number,
-            motivos_retorno,
-            itens_nao_entregues
+            phone_number
         } = req.body;
         
         // Validações básicas
@@ -192,38 +92,19 @@ router.post('/', async (req, res) => {
             });
         }
         
-        // Verificar se já existe retorno pendente para este motorista
-        const [existing] = await db.execute(
-            'SELECT id FROM retornos_carga WHERE driver_cpf = ? AND status IN ("aguardando_chegada", "bipando")',
-            [driver_cpf]
-        );
-        
-        if (existing.length > 0) {
-            return res.status(400).json({
-                success: false,
-                message: 'Motorista já possui retorno pendente'
-            });
-        }
-        
         const query = `
             INSERT INTO retornos_carga (
-                carregamento_id, driver_cpf, driver_name, vehicle_plate,
-                phone_number, motivos_retorno, itens_nao_entregues,
+                driver_cpf, driver_name, vehicle_plate, phone_number,
                 status, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, 'aguardando_chegada', NOW(), NOW())
+            ) VALUES (?, ?, ?, ?, 'aguardando_chegada', NOW(), NOW())
         `;
         
-        const params = [
-            carregamento_id || null,
+        const [result] = await db.execute(query, [
             driver_cpf,
             driver_name,
             vehicle_plate.toUpperCase(),
-            phone_number || null,
-            motivos_retorno ? JSON.stringify(motivos_retorno) : null,
-            itens_nao_entregues ? JSON.stringify(itens_nao_entregues) : null
-        ];
-        
-        const [result] = await db.execute(query, params);
+            phone_number || null
+        ]);
         
         console.log(`✅ Retorno registrado com ID: ${result.insertId}`);
         
@@ -247,7 +128,7 @@ router.post('/', async (req, res) => {
 router.put('/:id/status', async (req, res) => {
     try {
         const { id } = req.params;
-        const { status, notes } = req.body;
+        const { status } = req.body;
         
         console.log(`📝 PUT /api/retornos/${id}/status - Atualizando para: ${status}`);
         
@@ -256,30 +137,14 @@ router.put('/:id/status', async (req, res) => {
         if (!status || !validStatuses.includes(status)) {
             return res.status(400).json({
                 success: false,
-                message: 'Status inválido. Válidos: ' + validStatuses.join(', ')
+                message: 'Status inválido'
             });
         }
         
-        let updateQuery = 'UPDATE retornos_carga SET status = ?, updated_at = NOW()';
-        let params = [status];
-        
-        // Adicionar timestamp específico baseado no status
-        if (status === 'bipando') {
-            updateQuery += ', bipagem_iniciada_at = NOW()';
-        } else if (status === 'conferido') {
-            updateQuery += ', conferido_at = NOW()';
-        }
-        
-        // Adicionar notes se fornecido
-        if (notes) {
-            updateQuery += ', notes = ?';
-            params.push(notes);
-        }
-        
-        updateQuery += ' WHERE id = ?';
-        params.push(id);
-        
-        const [result] = await db.execute(updateQuery, params);
+        const [result] = await db.execute(
+            'UPDATE retornos_carga SET status = ?, updated_at = NOW() WHERE id = ?',
+            [status, id]
+        );
         
         if (result.affectedRows === 0) {
             return res.status(404).json({
@@ -332,13 +197,6 @@ router.post('/:id/bipar-item', async (req, res) => {
         
         const retornoData = retorno[0];
         
-        if (retornoData.status !== 'bipando') {
-            return res.status(400).json({
-                success: false,
-                message: 'Retorno deve estar no status "bipando" para bipar itens'
-            });
-        }
-        
         // Buscar itens já retornados
         let itensRetornados = [];
         try {
@@ -354,25 +212,18 @@ router.post('/:id/bipar-item', async (req, res) => {
             produto_nome: produto_nome || 'Produto sem nome',
             quantidade: parseInt(quantidade),
             bipado_em: new Date().toISOString(),
-            operador: 'Sistema' // Aqui você pode pegar do usuário logado
+            operador: 'Sistema'
         };
         
         itensRetornados.push(novoItem);
         
         // Atualizar no banco
-        const updateQuery = `
-            UPDATE retornos_carga 
-            SET itens_retornados = ?, updated_at = NOW() 
-            WHERE id = ?
-        `;
-        
-        const [result] = await db.execute(updateQuery, [JSON.stringify(itensRetornados), id]);
+        const [result] = await db.execute(
+            'UPDATE retornos_carga SET itens_retornados = ?, updated_at = NOW() WHERE id = ?',
+            [JSON.stringify(itensRetornados), id]
+        );
         
         console.log(`✅ Item ${codigo_barras} bipado com sucesso`);
-        
-        // TODO: Aqui você pode adicionar lógica para atualizar estoque
-        // await db.execute('UPDATE estoque SET quantidade = quantidade + ? WHERE codigo_barras = ?', 
-        //                  [quantidade, codigo_barras]);
         
         res.json({
             success: true,
@@ -472,7 +323,7 @@ router.delete('/:id/itens/:index', async (req, res) => {
         const itemRemovido = itens.splice(itemIndex, 1)[0];
         
         // Atualizar no banco
-        const [updateResult] = await db.execute(
+        await db.execute(
             'UPDATE retornos_carga SET itens_retornados = ?, updated_at = NOW() WHERE id = ?',
             [JSON.stringify(itens), id]
         );
