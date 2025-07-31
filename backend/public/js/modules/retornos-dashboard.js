@@ -227,10 +227,10 @@ class RetornosDashboard {
         switch (retorno.status) {
             case 'aguardando_chegada':
                 actions.push(`
-                    <button class="btn btn-sm btn-primary me-1" onclick="window.RetornosDashboard.iniciarBipagem(${retorno.id})">
+                    <button class="btn btn-sm btn-primary me-1" onclick="iniciarBipagem(${retorno.id})">
                         <i class="fas fa-barcode"></i> Iniciar Bipagem
                     </button>
-                    <button class="btn btn-sm btn-danger" onclick="window.RetornosDashboard.cancelarRetorno(${retorno.id})">
+                    <button class="btn btn-sm btn-danger" onclick="cancelarRetorno(${retorno.id})">
                         <i class="fas fa-times"></i> Cancelar
                     </button>
                 `);
@@ -238,10 +238,10 @@ class RetornosDashboard {
                 
             case 'bipando':
                 actions.push(`
-                    <button class="btn btn-sm btn-success me-1" onclick="window.RetornosDashboard.abrirBipagem(${retorno.id})">
+                    <button class="btn btn-sm btn-success me-1" onclick="continuarBipagem(${retorno.id})">
                         <i class="fas fa-barcode"></i> Continuar Bipagem
                     </button>
-                    <button class="btn btn-sm btn-warning me-1" onclick="window.RetornosDashboard.finalizarConferencia(${retorno.id})">
+                    <button class="btn btn-sm btn-warning me-1" onclick="finalizarConferencia(${retorno.id})">
                         <i class="fas fa-check"></i> Finalizar
                     </button>
                 `);
@@ -358,7 +358,7 @@ class RetornosDashboard {
                         </div>
                         <div class="col-md-1">
                             <button class="btn btn-sm btn-outline-danger" 
-                                    onclick="window.RetornosDashboard.removerItem(${index})"
+                                    onclick="removerItem(${index})"
                                     title="Remover item">
                                 <i class="fas fa-trash"></i>
                             </button>
@@ -703,5 +703,18 @@ class RetornosDashboard {
     }
 }
 
-// Inicializar quando carregar a página de retornos
+// ✅ CORREÇÃO APLICADA - Criar instância global e funções
 window.RetornosDashboard = new RetornosDashboard();
+
+// Funções globais para os botões funcionarem
+window.iniciarBipagem = (id) => window.RetornosDashboard.iniciarBipagem(id);
+window.continuarBipagem = (id) => window.RetornosDashboard.abrirBipagem(id);
+window.finalizarConferencia = (id) => window.RetornosDashboard.finalizarConferencia(id);
+window.cancelarRetorno = (id) => window.RetornosDashboard.cancelarRetorno(id);
+window.removerItem = (index) => window.RetornosDashboard.removerItem(index);
+
+// Inicializar quando a página carregar
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🚀 Inicializando sistema de retornos...');
+    window.RetornosDashboard.init();
+});
