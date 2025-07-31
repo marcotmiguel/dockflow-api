@@ -233,11 +233,22 @@ router.post('/:id/bipar-item', async (req, res) => {
         // Buscar itens já retornados
         let itensRetornados = [];
         try {
-            itensRetornados = retornoData.itens_retornados ? 
-                JSON.parse(retornoData.itens_retornados) : [];
+            if (retornoData.itens_retornados) {
+                // Se já é string JSON, fazer parse
+                if (typeof retornoData.itens_retornados === 'string') {
+                    itensRetornados = JSON.parse(retornoData.itens_retornados);
+                } else {
+                    // Se é objeto, usar diretamente
+                    itensRetornados = Array.isArray(retornoData.itens_retornados) ? 
+                        retornoData.itens_retornados : [];
+                }
+            }
         } catch (e) {
+            console.error('❌ Erro ao processar itens existentes:', e);
             itensRetornados = [];
         }
+        
+        console.log('📦 Itens existentes:', itensRetornados);
         
         // Adicionar novo item
         const novoItem = {
@@ -250,13 +261,18 @@ router.post('/:id/bipar-item', async (req, res) => {
         
         itensRetornados.push(novoItem);
         
+        console.log('📦 Itens após adicionar:', itensRetornados);
+        
+        // Atualizar no banco - garantir que é JSON
+        const itensJson = JSON.stringify(itensRetornados);
+        
         // Atualizar no banco
         const [result] = await db.execute(
             'UPDATE retornos_carga SET itens_retornados = ?, updated_at = NOW() WHERE id = ?',
-            [JSON.stringify(itensRetornados), id]
+            [itensJson, id]
         );
         
-        console.log(`✅ Item ${codigo_barras} bipado com sucesso`);
+        console.log(`✅ Item ${codigo_barras} salvo no banco como JSON:`, itensJson);
         
         res.json({
             success: true,
