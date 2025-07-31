@@ -308,24 +308,40 @@ class RetornosDashboard {
     // Carregar itens já bipados
     async loadItensBipados(id) {
         try {
+            console.log(`📋 Carregando itens bipados do retorno ${id}`);
+            
             const response = await fetch(`/api/retornos/${id}/itens`);
             
             if (response.ok) {
                 const result = await response.json();
+                console.log(`📦 Resultado loadItensBipados:`, result);
+                
                 if (result.success) {
+                    console.log(`✅ ${result.data.length} itens encontrados`);
                     this.renderItensBipados(result.data);
+                } else {
+                    console.error('❌ Erro na resposta:', result.message);
+                    this.renderItensBipados([]);
                 }
+            } else {
+                console.error('❌ Erro na requisição:', response.status);
+                this.renderItensBipados([]);
             }
         } catch (error) {
-            console.error('Erro ao carregar itens:', error);
+            console.error('❌ Erro ao carregar itens:', error);
             this.renderItensBipados([]); // Lista vazia em caso de erro
         }
     }
     
     // Renderizar itens bipados
     renderItensBipados(itens) {
+        console.log(`🎨 Renderizando ${itens.length} itens bipados:`, itens);
+        
         const container = document.getElementById('itens-bipados-list');
-        if (!container) return;
+        if (!container) {
+            console.error('❌ Container itens-bipados-list não encontrado');
+            return;
+        }
         
         if (itens.length === 0) {
             container.innerHTML = `
@@ -335,6 +351,12 @@ class RetornosDashboard {
                     <small>Use o scanner ou digite o código de barras</small>
                 </div>
             `;
+            
+            // Atualizar contador
+            const counter = document.getElementById('total-itens-bipados');
+            if (counter) {
+                counter.textContent = '0 itens';
+            }
             return;
         }
         
@@ -368,12 +390,16 @@ class RetornosDashboard {
             </div>
         `).join('');
         
+        console.log(`✅ HTML gerado para ${itens.length} itens`);
         container.innerHTML = html;
         
         // Atualizar contador
         const counter = document.getElementById('total-itens-bipados');
         if (counter) {
             counter.textContent = `${itens.length} itens`;
+            console.log(`📊 Contador atualizado: ${itens.length} itens`);
+        } else {
+            console.error('❌ Contador total-itens-bipados não encontrado');
         }
     }
     
