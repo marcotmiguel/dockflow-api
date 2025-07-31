@@ -34,6 +34,44 @@ router.get('/', async (req, res) => {
     }
 });
 
+// GET /api/retornos/stats - Estatísticas dos retornos
+router.get('/stats', async (req, res) => {
+    try {
+        console.log('📊 GET /api/retornos/stats - Buscando estatísticas');
+        
+        // Queries mais simples
+        const [aguardandoResult] = await db.execute('SELECT COUNT(*) as count FROM retornos_carga WHERE status = ?', ['aguardando_chegada']);
+        const [bipandoResult] = await db.execute('SELECT COUNT(*) as count FROM retornos_carga WHERE status = ?', ['bipando']);
+        const [conferidoResult] = await db.execute('SELECT COUNT(*) as count FROM retornos_carga WHERE status = ?', ['conferido']);
+        
+        const hoje = new Date().toISOString().split('T')[0];
+        const [hojeResult] = await db.execute('SELECT COUNT(*) as count FROM retornos_carga WHERE DATE(created_at) = ? AND status = ?', [hoje, 'conferido']);
+        
+        const stats = {
+            aguardando_chegada: aguardandoResult[0].count || 0,
+            bipando: bipandoResult[0].count || 0,
+            conferido: conferidoResult[0].count || 0,
+            conferido_hoje: hojeResult[0].count || 0,
+            total_itens_retornados: 0
+        };
+        
+        console.log('✅ Estatísticas carregadas:', stats);
+        
+        res.json({
+            success: true,
+            stats: stats
+        });
+        
+    } catch (error) {
+        console.error('❌ Erro ao buscar estatísticas:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erro interno do servidor',
+            error: error.message
+        });
+    }
+});
+
 // GET /api/retornos/:id - Buscar retorno específico
 router.get('/:id', async (req, res) => {
     try {
@@ -59,6 +97,44 @@ router.get('/:id', async (req, res) => {
         
     } catch (error) {
         console.error('❌ Erro ao buscar retorno:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erro interno do servidor',
+            error: error.message
+        });
+    }
+});
+
+// GET /api/retornos/stats - Estatísticas dos retornos
+router.get('/stats', async (req, res) => {
+    try {
+        console.log('📊 GET /api/retornos/stats - Buscando estatísticas');
+        
+        // Queries mais simples
+        const [aguardandoResult] = await db.execute('SELECT COUNT(*) as count FROM retornos_carga WHERE status = ?', ['aguardando_chegada']);
+        const [bipandoResult] = await db.execute('SELECT COUNT(*) as count FROM retornos_carga WHERE status = ?', ['bipando']);
+        const [conferidoResult] = await db.execute('SELECT COUNT(*) as count FROM retornos_carga WHERE status = ?', ['conferido']);
+        
+        const hoje = new Date().toISOString().split('T')[0];
+        const [hojeResult] = await db.execute('SELECT COUNT(*) as count FROM retornos_carga WHERE DATE(created_at) = ? AND status = ?', [hoje, 'conferido']);
+        
+        const stats = {
+            aguardando_chegada: aguardandoResult[0].count || 0,
+            bipando: bipandoResult[0].count || 0,
+            conferido: conferidoResult[0].count || 0,
+            conferido_hoje: hojeResult[0].count || 0,
+            total_itens_retornados: 0
+        };
+        
+        console.log('✅ Estatísticas carregadas:', stats);
+        
+        res.json({
+            success: true,
+            stats: stats
+        });
+        
+    } catch (error) {
+        console.error('❌ Erro ao buscar estatísticas:', error);
         res.status(500).json({
             success: false,
             message: 'Erro interno do servidor',
