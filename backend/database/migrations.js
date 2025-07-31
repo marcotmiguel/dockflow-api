@@ -189,6 +189,65 @@ const tableDefinitions = {
       status ENUM('sent','delivered','read','failed') DEFAULT 'sent',
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
+  `,
+  // 🔄 NOVA TABELA PARA RETORNOS DE CARGA
+  retornos_carga: `
+    CREATE TABLE IF NOT EXISTS retornos_carga (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      
+      -- Referência ao carregamento original (opcional)
+      carregamento_id INT NULL,
+      
+      -- Dados do motorista
+      driver_cpf VARCHAR(11) NOT NULL,
+      driver_name VARCHAR(255) NOT NULL,
+      vehicle_plate VARCHAR(10) NOT NULL,
+      phone_number VARCHAR(20) NULL,
+      
+      -- Status do retorno
+      status ENUM('aguardando_chegada', 'bipando', 'conferido', 'cancelado') 
+             DEFAULT 'aguardando_chegada',
+      
+      -- Motivos do retorno (JSON)
+      motivos_retorno JSON NULL,
+      
+      -- Itens que não foram entregues (JSON)
+      itens_nao_entregues JSON NULL,
+      
+      -- Itens que foram bipados no retorno (JSON)
+      itens_retornados JSON NULL,
+      
+      -- Observações e notas
+      notes TEXT NULL,
+      
+      -- Timestamps de controle
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      bipagem_iniciada_at TIMESTAMP NULL,
+      conferido_at TIMESTAMP NULL,
+      
+      -- Índices para performance
+      INDEX idx_driver_cpf (driver_cpf),
+      INDEX idx_status (status),
+      INDEX idx_created_at (created_at),
+      INDEX idx_vehicle_plate (vehicle_plate),
+      
+      -- Chave estrangeira opcional
+      FOREIGN KEY (carregamento_id) REFERENCES carregamentos(id) ON DELETE SET NULL
+    )
+  `,
+  // 📊 TABELA DE LOG PARA MUDANÇAS DE STATUS DOS RETORNOS
+  retornos_status_log: `
+    CREATE TABLE IF NOT EXISTS retornos_status_log (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      retorno_id INT NOT NULL,
+      status_anterior VARCHAR(50),
+      status_novo VARCHAR(50) NOT NULL,
+      changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      notes TEXT NULL,
+      
+      FOREIGN KEY (retorno_id) REFERENCES retornos_carga(id) ON DELETE CASCADE
+    )
   `
 };
 
@@ -231,6 +290,68 @@ const migrateVehiclesTable = async () => {
   }
 };
 
+// 🔄 Função para inserir dados de exemplo nos retornos
+const insertSampleReturnData = async () => {
+  try {
+    console.log('📦 Verificando se precisa inserir dados de exemplo para retornos...');
+    
+    // Verificar se já existem dados
+    const [existing] = await db.execute("SELECT COUNT(*) as count FROM retornos_carga");
+    
+    if (existing[0].count === 0) {
+      console.log('📝 Inserindo dados de exemplo para retornos...');
+      
+      await db.execute(`
+        INSERT INTO retornos_carga (
+          driver_cpf, driver_name, vehicle_plate, phone_number,
+          motivos_retorno, itens_nao_entregues, status
+        ) VALUES 
+        (
+          '12345678901', 
+          'João Silva', 
+          'ABC1234', 
+          '11999887766',
+          JSON_ARRAY('Cliente ausente', 'Endereço incorreto'),
+          JSON_ARRAY(
+            JSON_OBJECT('codigo', 'PROD001', 'nome', 'Produto A', 'quantidade', 2),
+            JSON_OBJECT('codigo', 'PROD002', 'nome', 'Produto B', 'quantidade', 1)
+          ),
+          'aguardando_chegada'
+        ),
+        (
+          '98765432109', 
+          'Maria Santos', 
+          'XYZ9876', 
+          '11888776655',
+          JSON_ARRAY('Recusa do cliente'),
+          JSON_ARRAY(
+            JSON_OBJECT('codigo', 'PROD003', 'nome', 'Produto C', 'quantidade', 1)
+          ),
+          'bipando'
+        ),
+        (
+          '11122233344', 
+          'Pedro Oliveira', 
+          'DEF5678', 
+          '11777665544',
+          JSON_ARRAY('Estabelecimento fechado'),
+          JSON_ARRAY(
+            JSON_OBJECT('codigo', 'PROD004', 'nome', 'Produto D', 'quantidade', 3)
+          ),
+          'conferido'
+        )
+      `);
+      
+      console.log('✅ Dados de exemplo inseridos com sucesso!');
+    } else {
+      console.log('✅ Dados de retorno já existem no banco');
+    }
+  } catch (error) {
+    console.error('❌ Erro ao inserir dados de exemplo:', error);
+    // Não throw o erro para não quebrar o sistema
+  }
+};
+
 // 🗄️ Função para criar/verificar tabelas (convertido para promises)
 const createTables = async () => {
   try {
@@ -256,6 +377,9 @@ const createTables = async () => {
       }
     }
     
+    // Inserir dados de exemplo para retornos
+    await insertSampleReturnData();
+    
     console.log('✅ Todas as tabelas foram processadas');
   } catch (error) {
     console.error('❌ Erro ao criar tabelas:', error);
@@ -266,5 +390,6 @@ const createTables = async () => {
 module.exports = {
   tableDefinitions,
   createTables,
-  migrateVehiclesTable
+  migrateVehiclesTable,
+  insertSampleReturnData
 };

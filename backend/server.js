@@ -1,4 +1,4 @@
-// server.js - VERSÃO UNIFICADA COM PROMISES
+// server.js - VERSÃO UNIFICADA COM PROMISES + RETORNOS
 require('dotenv').config();
 
 const express = require('express');
@@ -92,7 +92,9 @@ app.get('/', (req, res) => {
       drivers: '/api/drivers',
       vehicles: '/api/vehicles',
       products: '/api/products',
-      users: '/api/users'
+      users: '/api/users',
+      retornos: '/api/retornos',  // ← NOVO ENDPOINT
+      carregamentos: '/api/carregamentos'
     }
   });
 });
@@ -410,7 +412,9 @@ const loadWorkingRoutes = () => {
     { path: '/api/products', file: './routes/productRoutes', name: 'productRoutes' },
     { path: '/api/drivers', file: './routes/driverRoutes', name: 'driverRoutes' },
     { path: '/api/users', file: './routes/userRoutes', name: 'userRoutes' },
-    { path: '/api/routes', file: './routes/routeRoutes', name: 'routeRoutes' }
+    { path: '/api/routes', file: './routes/routeRoutes', name: 'routeRoutes' },
+    { path: '/api/carregamentos', file: './routes/carregamentoRoutes', name: 'carregamentoRoutes' },
+    { path: '/api/retornos', file: './routes/retornoRoutes', name: 'retornoRoutes' } // ← NOVA ROTA
   ];
 
   workingRoutes.forEach(({ path, file, name }) => {
@@ -419,7 +423,7 @@ const loadWorkingRoutes = () => {
       app.use(path, routeModule);
       console.log(`✅ ${name} carregado`);
     } catch (e) {
-      console.log(`⚠️ ${name} não encontrado`);
+      console.log(`⚠️ ${name} não encontrado - ${e.message}`);
     }
   });
   
@@ -437,6 +441,7 @@ const startServer = () => {
     console.log(`🏥 Health check: http://localhost:${PORT}/api/health`);
     console.log(`🌐 Interface: http://localhost:${PORT}/carregamento.html`);
     console.log(`📋 API: http://localhost:${PORT}/api`);
+    console.log(`🔄 Retornos: http://localhost:${PORT}/api/retornos`);
     console.log(`🔐 Segurança: ATIVADA`);
     console.log(`🛡️ Rate limiting: ATIVADO`);
     console.log(`🌐 Railway IPv6: CONFIGURADO`);
