@@ -308,14 +308,29 @@ router.get('/:id/itens', async (req, res) => {
         }
         
         let itens = [];
+        const itensRaw = result[0].itens_retornados;
+        
+        console.log(`📦 Dados brutos do banco:`, typeof itensRaw, itensRaw);
+        
         try {
-            itens = result[0].itens_retornados ? 
-                JSON.parse(result[0].itens_retornados) : [];
+            if (itensRaw) {
+                if (typeof itensRaw === 'string') {
+                    // Se é string, fazer parse
+                    itens = JSON.parse(itensRaw);
+                } else if (Array.isArray(itensRaw)) {
+                    // Se já é array, usar diretamente
+                    itens = itensRaw;
+                } else if (typeof itensRaw === 'object') {
+                    // Se é objeto mas não array, pode ser um item único
+                    itens = [itensRaw];
+                }
+            }
         } catch (e) {
+            console.error('❌ Erro ao processar itens:', e);
             itens = [];
         }
         
-        console.log(`✅ ${itens.length} itens encontrados`);
+        console.log(`✅ ${itens.length} itens processados:`, itens);
         
         res.json({
             success: true,
