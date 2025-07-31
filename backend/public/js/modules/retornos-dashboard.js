@@ -515,12 +515,29 @@ class RetornosDashboard {
     
     // Bipar item
     async biparItem() {
-        const codigoBarras = document.getElementById('codigo-barras')?.value.trim();
-        const produtoNome = document.getElementById('produto-nome')?.value.trim();
-        const quantidade = document.getElementById('quantidade')?.value || 1;
+        // Pegar valores IMEDIATAMENTE
+        const codigoBarrasInput = document.getElementById('codigo-barras');
+        const produtoNomeInput = document.getElementById('produto-nome');
+        const quantidadeInput = document.getElementById('quantidade');
+        
+        if (!codigoBarrasInput || !produtoNomeInput || !quantidadeInput) {
+            this.showAlert('Erro: Campos do modal não encontrados', 'danger');
+            return;
+        }
+        
+        const codigoBarras = codigoBarrasInput.value.trim();
+        const produtoNome = produtoNomeInput.value.trim();
+        const quantidade = quantidadeInput.value || 1;
+        
+        console.log('🔍 Debug biparItem:');
+        console.log('   Código:', codigoBarras);
+        console.log('   Produto:', produtoNome);
+        console.log('   Quantidade:', quantidade);
+        console.log('   Retorno atual:', this.retornoAtual);
         
         if (!codigoBarras) {
             this.showAlert('Digite o código de barras', 'warning');
+            codigoBarrasInput.focus();
             return;
         }
         
@@ -530,6 +547,8 @@ class RetornosDashboard {
         }
         
         try {
+            console.log(`📦 Bipando item ${codigoBarras} no retorno ${this.retornoAtual}`);
+            
             const response = await fetch(`/api/retornos/${this.retornoAtual}/bipar-item`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -540,26 +559,31 @@ class RetornosDashboard {
                 })
             });
             
+            const result = await response.json();
+            
             if (response.ok) {
+                console.log('✅ Item bipado com sucesso:', result);
                 this.showAlert('Item bipado com sucesso!', 'success');
                 
                 // Limpar campos
-                document.getElementById('codigo-barras').value = '';
-                document.getElementById('produto-nome').value = '';
-                document.getElementById('quantidade').value = '1';
+                codigoBarrasInput.value = '';
+                produtoNomeInput.value = '';
+                quantidadeInput.value = '1';
                 
                 // Recarregar lista
                 await this.loadItensBipados(this.retornoAtual);
                 
                 // Focar novamente no código de barras
-                document.getElementById('codigo-barras').focus();
+                setTimeout(() => {
+                    codigoBarrasInput.focus();
+                }, 100);
                 
             } else {
-                const result = await response.json();
+                console.error('❌ Erro ao bipar:', result);
                 this.showAlert('Erro: ' + result.message, 'danger');
             }
         } catch (error) {
-            console.error('Erro ao bipar item:', error);
+            console.error('❌ Erro ao bipar item:', error);
             this.showAlert('Erro de conexão', 'danger');
         }
     }
