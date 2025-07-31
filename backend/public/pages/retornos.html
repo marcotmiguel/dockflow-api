@@ -106,18 +106,178 @@
 </style>
 
 <script>
-// Inicializar módulo quando a página carregar
-document.addEventListener('DOMContentLoaded', function() {
-  // Aguardar um pouco para garantir que o módulo esteja carregado
-  setTimeout(() => {
-    if (window.RetornosDashboard) {
-      window.RetornosDashboard.init();
-    } else {
-      console.warn('RetornosDashboard não encontrado, inicializando dados locais...');
-      // Criar instância local se não estiver disponível
+console.log('📄 Página retornos.html carregada');
+
+// Função para inicializar retornos
+function initRetornos() {
+  console.log('🔄 Tentando inicializar retornos...');
+  
+  if (window.RetornosDashboard) {
+    console.log('✅ RetornosDashboard encontrado, inicializando...');
+    window.RetornosDashboard.init();
+  } else {
+    console.log('⚠️ RetornosDashboard não encontrado, criando nova instância...');
+    
+    // Tentar carregar o módulo primeiro
+    if (typeof RetornosDashboard !== 'undefined') {
       window.RetornosDashboard = new RetornosDashboard();
       window.RetornosDashboard.init();
+    } else {
+      console.log('📦 Carregando dados locais diretamente...');
+      // Inicializar dados locais diretamente se o módulo não estiver disponível
+      loadLocalRetornosData();
     }
-  }, 100);
-});
+  }
+}
+
+// Função para carregar dados locais diretamente
+function loadLocalRetornosData() {
+  console.log('💾 Carregando dados locais diretamente...');
+  
+  // Dados de exemplo
+  const retornos = [
+    {
+      id: 1,
+      driver_name: 'João Silva',
+      driver_cpf: '12345678901',
+      vehicle_plate: 'ABC1234',
+      route_code: 'SP-CENTRO',
+      route_description: 'São Paulo Centro',
+      status: 'aguardando_chegada',
+      created_at: new Date().toISOString(),
+      itens_retornados: null
+    },
+    {
+      id: 2,
+      driver_name: 'Maria Santos',
+      driver_cpf: '98765432109',
+      vehicle_plate: 'XYZ5678',
+      route_code: 'SP-SUL',
+      route_description: 'São Paulo Zona Sul',
+      status: 'bipando',
+      created_at: new Date(Date.now() - 3600000).toISOString(),
+      itens_retornados: '[{"codigo_barras":"123456","produto_nome":"Produto A","quantidade":1}]'
+    },
+    {
+      id: 3,
+      driver_name: 'Pedro Oliveira',
+      driver_cpf: '11122233344',
+      vehicle_plate: 'DEF5678',
+      route_code: 'SP-NORTE',
+      route_description: 'São Paulo Zona Norte',
+      status: 'conferido',
+      created_at: new Date(Date.now() - 7200000).toISOString(),
+      itens_retornados: '[{"codigo_barras":"789012","produto_nome":"Produto B","quantidade":2}]'
+    }
+  ];
+  
+  const stats = {
+    aguardando_chegada: 1,
+    bipando: 1,
+    conferido: 1,
+    total_itens_retornados: 3
+  };
+  
+  // Atualizar estatísticas
+  document.getElementById('aguardando-count').textContent = stats.aguardando_chegada;
+  document.getElementById('bipando-count').textContent = stats.bipando;
+  document.getElementById('conferido-count').textContent = stats.conferido;
+  document.getElementById('total-itens-retornados').textContent = stats.total_itens_retornados;
+  
+  // Renderizar retornos
+  const container = document.getElementById('retornos-container');
+  if (container) {
+    const html = retornos.map(retorno => {
+      const statusText = {
+        'aguardando_chegada': 'Aguardando Chegada',
+        'bipando': 'Bipando',
+        'conferido': 'Conferido'
+      }[retorno.status];
+      
+      const statusColor = {
+        'aguardando_chegada': 'warning',
+        'bipando': 'primary',
+        'conferido': 'success'
+      }[retorno.status];
+      
+      const statusClass = {
+        'aguardando_chegada': 'status-aguardando',
+        'bipando': 'status-bipando',
+        'conferido': 'status-conferido'
+      }[retorno.status];
+      
+      const itensBipados = retorno.itens_retornados ? JSON.parse(retorno.itens_retornados).length : 0;
+      
+      return `
+        <div class="card mb-3 retorno-item ${statusClass}" data-id="${retorno.id}">
+          <div class="card-body">
+            <div class="row align-items-center">
+              <div class="col-md-3">
+                <h6 class="mb-1">
+                  <i class="fas fa-user"></i> ${retorno.driver_name}
+                </h6>
+                <small class="text-muted">CPF: ${retorno.driver_cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')}</small>
+                <br>
+                <small class="text-muted">Placa: ${retorno.vehicle_plate}</small>
+              </div>
+              <div class="col-md-2">
+                <i class="fas fa-route"></i> ${retorno.route_code}
+                <br>
+                <small class="text-muted">${retorno.route_description}</small>
+              </div>
+              <div class="col-md-2">
+                <span class="badge bg-${statusColor}">
+                  ${statusText}
+                </span>
+                <br>
+                <small class="text-muted">Agora mesmo</small>
+              </div>
+              <div class="col-md-2">
+                <i class="fas fa-boxes"></i> ${itensBipados} itens
+                <br>
+                <small class="text-muted">bipados</small>
+              </div>
+              <div class="col-md-3 text-end">
+                ${retorno.status === 'aguardando_chegada' ? `
+                  <button class="btn btn-sm btn-primary me-1">
+                    <i class="fas fa-barcode"></i> Iniciar Bipagem
+                  </button>
+                  <button class="btn btn-sm btn-danger">
+                    <i class="fas fa-times"></i> Cancelar
+                  </button>
+                ` : retorno.status === 'bipando' ? `
+                  <button class="btn btn-sm btn-success me-1">
+                    <i class="fas fa-barcode"></i> Continuar Bipagem
+                  </button>
+                  <button class="btn btn-sm btn-warning">
+                    <i class="fas fa-check"></i> Finalizar
+                  </button>
+                ` : `
+                  <small class="text-success">
+                    <i class="fas fa-check-circle"></i> Conferido
+                  </small>
+                `}
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+    
+    container.innerHTML = html;
+    console.log('✅ Retornos renderizados com sucesso!');
+  }
+}
+
+// Tentar inicializar imediatamente
+initRetornos();
+
+// Tentar novamente após 100ms
+setTimeout(initRetornos, 100);
+
+// E mais uma vez após 500ms para garantir
+setTimeout(initRetornos, 500);
+
+// Também tentar quando o DOM estiver pronto
+document.addEventListener('DOMContentLoaded', initRetornos);
 </script>
