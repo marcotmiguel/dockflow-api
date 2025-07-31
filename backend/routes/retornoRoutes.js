@@ -13,17 +13,15 @@ router.get('/', async (req, res) => {
         
         const { status, motorista, data_inicio, data_fim, page = 1, limit = 50 } = req.query;
         
+        // Query simples sem JOIN com routes até verificarmos a estrutura
         let query = `
             SELECT 
                 r.*,
                 c.numero_nf,
                 c.destinatario,
-                c.route_id,
-                rt.code as route_code,
-                rt.description as route_description
+                c.route_id
             FROM retornos_carga r
             LEFT JOIN carregamentos c ON r.carregamento_id = c.id
-            LEFT JOIN routes rt ON c.route_id = rt.id
             WHERE 1=1
         `;
         let params = [];
@@ -126,14 +124,14 @@ router.get('/stats', async (req, res) => {
             conferido: 'SELECT COUNT(*) as count FROM retornos_carga WHERE status = "conferido"',
             hoje: 'SELECT COUNT(*) as count FROM retornos_carga WHERE DATE(created_at) = ? AND status = "conferido"',
             itens: `
-                SELECT SUM(
+                SELECT COALESCE(SUM(
                     JSON_LENGTH(
                         CASE 
                             WHEN JSON_VALID(itens_retornados) THEN itens_retornados 
                             ELSE '[]' 
                         END
                     )
-                ) as total 
+                ), 0) as total 
                 FROM retornos_carga 
                 WHERE DATE(created_at) = ?
             `
