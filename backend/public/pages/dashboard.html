@@ -13,6 +13,55 @@
   
   <!-- CSS personalizado -->
   <link rel="stylesheet" href="../assets/css/style.css">
+  
+  <style>
+    /* Estilo específico para o card de retornos */
+    .card-retornos {
+      background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+      color: white;
+      border: none;
+      cursor: pointer;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    
+    .card-retornos:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 15px rgba(255, 107, 53, 0.3);
+    }
+    
+    .card-retornos .card-body {
+      padding: 1.5rem;
+    }
+    
+    .card-retornos .display-4 {
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+    
+    .card-retornos .text-white-75 {
+      opacity: 0.9;
+    }
+    
+    .pulse {
+      animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+      100% { transform: scale(1); }
+    }
+
+    /* Esconder cards quando não estiver no dashboard */
+    .dashboard-cards {
+      display: none;
+    }
+    
+    /* Mostrar cards apenas no dashboard */
+    body.dashboard-page .dashboard-cards {
+      display: flex;
+    }
+  </style>
 </head>
 <body>
   <div id="dashboard-container" class="container-fluid">
@@ -102,48 +151,68 @@
           </div>
         </div>
         
+        <!-- Cards de Estatísticas (só aparecem no dashboard) -->
+        <div class="row mb-4 dashboard-cards">
+          <!-- Card Carregamentos Hoje -->
+          <div class="col-md-2 col-sm-6 mb-3">
+            <div class="card text-white bg-primary h-100">
+              <div class="card-body text-center">
+                <i class="fas fa-truck-loading fa-2x mb-2"></i>
+                <div class="display-6 fw-bold" id="carregamentos-hoje">0</div>
+                <small class="text-white-75">Carregamentos Hoje</small>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Card Docas -->
+          <div class="col-md-2 col-sm-6 mb-3">
+            <div class="card text-white bg-success h-100">
+              <div class="card-body text-center">
+                <i class="fas fa-warehouse fa-2x mb-2"></i>
+                <div class="display-6 fw-bold" id="docas-disponiveis">2</div>
+                <small class="text-white-75">Docas Disponíveis</small>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Card Retornos Pendentes (NOVO) -->
+          <div class="col-md-2 col-sm-6 mb-3">
+            <div class="card card-retornos h-100" onclick="irParaRetornos()" style="cursor: pointer;">
+              <div class="card-body text-center">
+                <i class="fas fa-undo fa-2x mb-2"></i>
+                <div class="display-6 fw-bold" id="retornos-pendentes">0</div>
+                <small class="text-white-75">Retornos Pendentes</small>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Card Taxa de Ocupação -->
+          <div class="col-md-3 col-sm-6 mb-3">
+            <div class="card text-white bg-warning h-100">
+              <div class="card-body text-center">
+                <i class="fas fa-chart-pie fa-2x mb-2"></i>
+                <div class="display-6 fw-bold" id="taxa-ocupacao">0%</div>
+                <small class="text-white-75">Taxa de Ocupação</small>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Card Eficiência -->
+          <div class="col-md-3 col-sm-6 mb-3">
+            <div class="card text-white bg-info h-100">
+              <div class="card-body text-center">
+                <i class="fas fa-chart-line fa-2x mb-2"></i>
+                <div class="display-6 fw-bold" id="eficiencia">0%</div>
+                <small class="text-white-75">Eficiência</small>
+              </div>
+            </div>
+          </div>
+        </div>
+        
         <!-- Conteúdo da página (carregado dinamicamente) -->
         <div id="content-container">
           <!-- O conteúdo será carregado dinamicamente via JavaScript -->
         </div>
-        
-        <!-- Scripts adicionais para funcionalidades globais -->
-        <script>
-          // Função para ir para página de retornos (função global)
-          function irParaRetornos() {
-            // Simular clique no menu de retornos
-            const retornosLink = document.querySelector('[data-page="retornos"]');
-            if (retornosLink) {
-              retornosLink.click();
-            }
-          }
-          
-          // Função para carregar estatísticas de retornos (função global)
-          async function carregarEstatisticasRetornos() {
-            try {
-              const response = await fetch('/api/retornos/stats');
-              if (response.ok) {
-                const data = await response.json();
-                const retornosPendentes = data.data.aguardando_chegada + data.data.bipando;
-                
-                const elemento = document.getElementById('retornos-pendentes');
-                if (elemento) {
-                  elemento.textContent = retornosPendentes;
-                  
-                  // Adicionar efeito pulsante se houver retornos pendentes
-                  const card = elemento.closest('.card-retornos');
-                  if (retornosPendentes > 0 && card) {
-                    card.classList.add('pulse');
-                  } else if (card) {
-                    card.classList.remove('pulse');
-                  }
-                }
-              }
-            } catch (error) {
-              console.log('Erro ao carregar estatísticas de retornos:', error);
-            }
-          }
-        </script>
       </main>
     </div>
   </div>
@@ -422,6 +491,75 @@
     if (contentContainer) {
       observer.observe(contentContainer, { childList: true, subtree: true });
     }
+    
+    // Função para ir para página de retornos
+    function irParaRetornos() {
+      // Simular clique no menu de retornos
+      const retornosLink = document.querySelector('[data-page="retornos"]');
+      if (retornosLink) {
+        retornosLink.click();
+      }
+    }
+    
+    // Função para carregar estatísticas de retornos
+    async function carregarEstatisticasRetornos() {
+      try {
+        const response = await fetch('/api/retornos/stats');
+        if (response.ok) {
+          const data = await response.json();
+          const retornosPendentes = data.data.aguardando_chegada + data.data.bipando;
+          
+          const elemento = document.getElementById('retornos-pendentes');
+          if (elemento) {
+            elemento.textContent = retornosPendentes;
+            
+            // Adicionar efeito pulsante se houver retornos pendentes
+            const card = elemento.closest('.card-retornos');
+            if (retornosPendentes > 0 && card) {
+              card.classList.add('pulse');
+            } else if (card) {
+              card.classList.remove('pulse');
+            }
+          }
+        }
+      } catch (error) {
+        console.log('Erro ao carregar estatísticas de retornos:', error);
+      }
+    }
+    
+    // Função para controlar visibilidade dos cards baseado na página atual
+    function controlarVisibilidadeCards() {
+      const pageTitle = document.getElementById('page-title');
+      if (pageTitle && pageTitle.textContent.trim() === 'Dashboard') {
+        document.body.classList.add('dashboard-page');
+        // Carregar estatísticas quando está no dashboard
+        carregarEstatisticasRetornos();
+      } else {
+        document.body.classList.remove('dashboard-page');
+      }
+    }
+    
+    // Carregar estatísticas quando a página carrega
+    document.addEventListener('DOMContentLoaded', function() {
+      controlarVisibilidadeCards();
+      
+      // Observar mudanças no título da página
+      const titleObserver = new MutationObserver(function() {
+        controlarVisibilidadeCards();
+      });
+      
+      const pageTitle = document.getElementById('page-title');
+      if (pageTitle) {
+        titleObserver.observe(pageTitle, { childList: true, characterData: true, subtree: true });
+      }
+      
+      // Atualizar a cada 30 segundos (só quando no dashboard)
+      setInterval(function() {
+        if (document.body.classList.contains('dashboard-page')) {
+          carregarEstatisticasRetornos();
+        }
+      }, 30000);
+    });
   </script>
 
 </body>
