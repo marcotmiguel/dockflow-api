@@ -220,17 +220,21 @@ class RetornosDashboard {
         `;
     }
     
-    // Renderizar ações baseadas no status
+    // ✅ CORREÇÃO: Renderizar ações com IDs específicos
     renderRetornoActions(retorno) {
         const actions = [];
         
         switch (retorno.status) {
             case 'aguardando_chegada':
                 actions.push(`
-                    <button class="btn btn-sm btn-primary me-1" onclick="iniciarBipagem(${retorno.id})">
+                    <button class="btn btn-sm btn-primary me-1" 
+                            onclick="window.RetornosDashboard.iniciarBipagem(${retorno.id})"
+                            data-retorno-id="${retorno.id}">
                         <i class="fas fa-barcode"></i> Iniciar Bipagem
                     </button>
-                    <button class="btn btn-sm btn-danger" onclick="cancelarRetorno(${retorno.id})">
+                    <button class="btn btn-sm btn-danger" 
+                            onclick="window.RetornosDashboard.cancelarRetorno(${retorno.id})"
+                            data-retorno-id="${retorno.id}">
                         <i class="fas fa-times"></i> Cancelar
                     </button>
                 `);
@@ -238,10 +242,14 @@ class RetornosDashboard {
                 
             case 'bipando':
                 actions.push(`
-                    <button class="btn btn-sm btn-success me-1" onclick="continuarBipagem(${retorno.id})">
+                    <button class="btn btn-sm btn-success me-1" 
+                            onclick="window.RetornosDashboard.abrirBipagem(${retorno.id})"
+                            data-retorno-id="${retorno.id}">
                         <i class="fas fa-barcode"></i> Continuar Bipagem
                     </button>
-                    <button class="btn btn-sm btn-warning me-1" onclick="finalizarConferencia(${retorno.id})">
+                    <button class="btn btn-sm btn-warning me-1" 
+                            onclick="window.RetornosDashboard.finalizarConferencia(${retorno.id})"
+                            data-retorno-id="${retorno.id}">
                         <i class="fas fa-check"></i> Finalizar
                     </button>
                 `);
@@ -290,9 +298,17 @@ class RetornosDashboard {
         }
     }
     
-    // Abrir modal de bipagem
+    // ✅ CORREÇÃO: Abrir modal de bipagem com controle melhorado
     async abrirBipagem(id) {
-        this.retornoAtual = id;
+        console.log(`🔧 CORREÇÃO: Abrindo bipagem para retorno ID: ${id}`);
+        
+        // IMPORTANTE: Limpar estado anterior e definir novo ID
+        this.retornoAtual = null; // Limpar primeiro
+        await new Promise(resolve => setTimeout(resolve, 100)); // Pequena pausa
+        this.retornoAtual = id; // Definir novo
+        
+        console.log(`✅ Retorno atual definido: ${this.retornoAtual}`);
+        
         await this.loadItensBipados(id);
         
         const modal = new bootstrap.Modal(document.getElementById('bipagemModal'));
@@ -301,7 +317,10 @@ class RetornosDashboard {
         // Focar no campo código de barras
         setTimeout(() => {
             const input = document.getElementById('codigo-barras');
-            if (input) input.focus();
+            if (input) {
+                input.focus();
+                input.value = ''; // Limpar campo
+            }
         }, 500);
     }
     
@@ -380,7 +399,7 @@ class RetornosDashboard {
                         </div>
                         <div class="col-md-1">
                             <button class="btn btn-sm btn-outline-danger" 
-                                    onclick="removerItem(${index})"
+                                    onclick="window.RetornosDashboard.removerItem(${index})"
                                     title="Remover item">
                                 <i class="fas fa-trash"></i>
                             </button>
@@ -403,42 +422,70 @@ class RetornosDashboard {
         }
     }
     
-    // Finalizar conferência
+    // ✅ CORREÇÃO: Finalizar conferência com limpeza completa
     async finalizarConferencia(id = null) {
+        // CORREÇÃO: Usar ID específico sempre que possível
         const retornoId = id || this.retornoAtual;
+        
+        console.log(`🔧 CORREÇÃO: Finalizando conferência para ID: ${retornoId}`);
+        console.log(`   ID recebido: ${id}`);
+        console.log(`   Retorno atual: ${this.retornoAtual}`);
         
         if (!retornoId) {
             this.showAlert('Erro: ID do retorno não encontrado', 'danger');
             return;
         }
         
-        if (!confirm('Finalizar conferência? Todos os itens bipados serão considerados conferidos.')) {
+        if (!confirm(`Finalizar conferência do retorno ID ${retornoId}?\nTodos os itens bipados serão considerados conferidos.`)) {
             return;
         }
         
         try {
+            console.log(`📝 Enviando requisição para finalizar retorno ${retornoId}`);
+            
             const response = await fetch(`/api/retornos/${retornoId}/status`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ status: 'conferido' })
+                body: JSON.stringify({ 
+                    status: 'conferido',
+                    finalizado_em: new Date().toISOString(),
+                    finalizado_por: 'Sistema' // Adicione user se tiver auth
+                })
             });
             
+            const result = await response.json();
+            console.log(`📋 Resposta da API:`, result);
+            
             if (response.ok) {
+                console.log(`✅ Conferência finalizada com sucesso para retorno ${retornoId}`);
                 this.showAlert('Conferência finalizada com sucesso!', 'success');
-                await this.loadRetornos();
-                await this.loadStats();
+                
+                // ✅ IMPORTANTE: Limpar estado completamente
+                if (this.retornoAtual === retornoId) {
+                    console.log(`🧹 Limpando retorno atual (era ${this.retornoAtual})`);
+                    this.retornoAtual = null;
+                }
+                
+                // Recarregar dados COM delay para garantir atualização
+                setTimeout(async () => {
+                    await this.loadRetornos();
+                    await this.loadStats();
+                    console.log(`🔄 Dados recarregados após finalização`);
+                }, 500);
                 
                 // Fechar modal se estiver aberto
                 const modal = bootstrap.Modal.getInstance(document.getElementById('bipagemModal'));
                 if (modal) {
+                    console.log(`🚪 Fechando modal de bipagem`);
                     modal.hide();
                 }
+                
             } else {
-                const result = await response.json();
-                this.showAlert('Erro: ' + result.message, 'danger');
+                console.error(`❌ Erro na API:`, result);
+                this.showAlert('Erro: ' + (result.message || 'Erro desconhecido'), 'danger');
             }
         } catch (error) {
-            console.error('Erro ao finalizar conferência:', error);
+            console.error('❌ Erro ao finalizar conferência:', error);
             this.showAlert('Erro de conexão', 'danger');
         }
     }
@@ -492,7 +539,24 @@ class RetornosDashboard {
         }
     }
     
-    // Bind eventos
+    // ✅ CORREÇÃO: Função para limpar estado
+    limparEstado() {
+        console.log('🧹 Limpando estado do sistema...');
+        this.retornoAtual = null;
+        
+        // Limpar campos do modal se existirem
+        const campos = ['codigo-barras', 'produto-nome', 'quantidade'];
+        campos.forEach(id => {
+            const campo = document.getElementById(id);
+            if (campo) {
+                campo.value = id === 'quantidade' ? '1' : '';
+            }
+        });
+        
+        console.log('✅ Estado limpo');
+    }
+    
+    // ✅ CORREÇÃO: Bind eventos melhorado
     bindEvents() {
         // Botão atualizar
         const refreshBtn = document.getElementById('refresh-retornos');
@@ -537,9 +601,18 @@ class RetornosDashboard {
                 this.handleRegistrarRetorno(e);
             });
         }
+        
+        // ✅ NOVA CORREÇÃO: Limpar estado quando modal for fechado
+        const bipagemModal = document.getElementById('bipagemModal');
+        if (bipagemModal) {
+            bipagemModal.addEventListener('hidden.bs.modal', () => {
+                console.log('🚪 Modal fechado - limpando estado');
+                this.limparEstado();
+            });
+        }
     }
     
-    // Bipar item
+    // ✅ CORREÇÃO: Bipar item melhorado
     async biparItem() {
         // Pegar valores IMEDIATAMENTE
         const codigoBarrasInput = document.getElementById('codigo-barras');
@@ -555,7 +628,7 @@ class RetornosDashboard {
         const produtoNome = produtoNomeInput.value.trim();
         const quantidade = quantidadeInput.value || 1;
         
-        console.log('🔍 Debug biparItem:');
+        console.log('🔍 Debug biparItem CORRIGIDO:');
         console.log('   Código:', codigoBarras);
         console.log('   Produto:', produtoNome);
         console.log('   Quantidade:', quantidade);
@@ -568,35 +641,45 @@ class RetornosDashboard {
         }
         
         if (!this.retornoAtual) {
-            this.showAlert('Erro: Retorno não selecionado', 'danger');
+            this.showAlert('Erro: Nenhum retorno selecionado para bipagem', 'danger');
+            console.error('❌ ERRO CRÍTICO: retornoAtual é null');
             return;
         }
         
         try {
             console.log(`📦 Bipando item ${codigoBarras} no retorno ${this.retornoAtual}`);
             
+            // ✅ CORREÇÃO: Adicionar timestamp e validação extra
+            const requestBody = {
+                codigo_barras: codigoBarras,
+                produto_nome: produtoNome || 'Produto sem nome',
+                quantidade: parseInt(quantidade),
+                bipado_em: new Date().toISOString(),
+                retorno_id: this.retornoAtual // Garantia extra
+            };
+            
+            console.log('📋 Dados enviados:', requestBody);
+            
             const response = await fetch(`/api/retornos/${this.retornoAtual}/bipar-item`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    codigo_barras: codigoBarras,
-                    produto_nome: produtoNome || 'Produto sem nome',
-                    quantidade: parseInt(quantidade)
-                })
+                body: JSON.stringify(requestBody)
             });
             
             const result = await response.json();
+            console.log('📋 Resposta da bipagem:', result);
             
             if (response.ok) {
                 console.log('✅ Item bipado com sucesso:', result);
-                this.showAlert('Item bipado com sucesso!', 'success');
+                this.showAlert(`Item ${codigoBarras} bipado com sucesso!`, 'success');
                 
                 // Limpar campos
                 codigoBarrasInput.value = '';
                 produtoNomeInput.value = '';
                 quantidadeInput.value = '1';
                 
-                // Recarregar lista
+                // ✅ CORREÇÃO: Recarregar APENAS o retorno atual
+                console.log(`🔄 Recarregando itens do retorno ${this.retornoAtual}`);
                 await this.loadItensBipados(this.retornoAtual);
                 
                 // Focar novamente no código de barras
@@ -606,7 +689,7 @@ class RetornosDashboard {
                 
             } else {
                 console.error('❌ Erro ao bipar:', result);
-                this.showAlert('Erro: ' + result.message, 'danger');
+                this.showAlert('Erro: ' + (result.message || 'Erro desconhecido'), 'danger');
             }
         } catch (error) {
             console.error('❌ Erro ao bipar item:', error);
