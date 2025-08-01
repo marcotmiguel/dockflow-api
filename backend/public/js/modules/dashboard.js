@@ -295,33 +295,42 @@ const Dashboard = {
       const availableDocks = docksData.filter(dock => dock.status === 'available').length;
       const occupiedDocks = docksData.filter(dock => dock.status === 'occupied').length;
       
-      // Atualizar elementos do dashboard
-      this.updateElement('total-loadings', totalLoadings);
-      this.updateElement('completed-loadings', completedLoadings);
-      this.updateElement('in-progress-loadings', inProgressLoadings);
-      this.updateElement('scheduled-loadings', scheduledLoadings);
-      this.updateElement('total-docks', totalDocks);
-      this.updateElement('available-docks', availableDocks);
-      this.updateElement('occupied-docks', occupiedDocks);
-      
-      // Calcular taxa de ocupação
-      const occupancyRate = totalDocks > 0 ? Math.round((occupiedDocks / totalDocks) * 100) : 0;
-      this.updateElement('occupancy-rate', `${occupancyRate}%`);
-      
-      // Calcular eficiência de carregamento
-      const loadingEfficiency = totalLoadings > 0 ? Math.round((completedLoadings / totalLoadings) * 100) : 0;
-      this.updateElement('loading-efficiency', `${loadingEfficiency}%`);
-      
-      // Atualizar barras de progresso
-      this.updateProgressBar('occupancy-bar', occupancyRate);
-      this.updateProgressBar('efficiency-bar', loadingEfficiency);
+        // Atualizar números (usando os IDs corretos do seu HTML)
+        this.updateElement('carregamentos-hoje', totalLoadings);
+        this.updateElement('docas-disponiveis', availableDocks);
+        this.updateElement('taxa-ocupacao', `${occupancyRate}%`);
+        this.updateElement('eficiencia', `${loadingEfficiency}%`);
       
       // Carregar estatísticas de retornos e adicionar listener
       this.loadRetornosStats();
       setTimeout(() => this.addRetornosCardListener(), 100);
       
+      // Configurar atualização automática das estatísticas de retornos
+      this.setupRetornosAutoUpdate();
+      
     } catch (error) {
       console.error('Erro ao carregar estatísticas:', error);
+    }
+  },
+
+  // Configurar atualização automática das estatísticas de retornos
+  setupRetornosAutoUpdate: function() {
+    // Atualizar imediatamente
+    if (typeof carregarEstatisticasRetornos === 'function') {
+      carregarEstatisticasRetornos();
+      
+      // Configurar intervalo de atualização a cada 30 segundos
+      if (!this.retornosUpdateInterval) {
+        this.retornosUpdateInterval = setInterval(carregarEstatisticasRetornos, 30000);
+      }
+    }
+  },
+
+  // Limpar intervalo de atualização (para evitar múltiplos intervalos)
+  clearRetornosAutoUpdate: function() {
+    if (this.retornosUpdateInterval) {
+      clearInterval(this.retornosUpdateInterval);
+      this.retornosUpdateInterval = null;
     }
   },
 
