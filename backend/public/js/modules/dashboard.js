@@ -7,6 +7,7 @@ const Dashboard = {
     this.loadDashboardStats();
     this.loadActiveDocks();
     this.loadTodayLoadings();
+    this.loadRetornosStats();
   },
 
   // Obter conteúdo HTML do dashboard
@@ -15,7 +16,7 @@ const Dashboard = {
       <div class="dashboard-page">
         <!-- Cards de estatísticas -->
         <div class="row mb-4">
-          <div class="col-md-6 col-lg-3 mb-3">
+          <div class="col-md-6 col-lg-2 mb-3">
             <div class="card stat-card bg-light-subtle">
               <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center">
@@ -36,7 +37,7 @@ const Dashboard = {
             </div>
           </div>
             
-          <div class="col-md-6 col-lg-3 mb-3">
+          <div class="col-md-6 col-lg-2 mb-3">
             <div class="card stat-card bg-light-subtle">
               <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center">
@@ -51,6 +52,27 @@ const Dashboard = {
                 <div class="mt-3">
                   <span class="badge bg-success me-1" id="available-docks">0</span> Disponíveis
                   <span class="badge bg-warning ms-1" id="occupied-docks">0</span> Ocupadas
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- NOVO CARD: Retornos Pendentes -->
+          <div class="col-md-6 col-lg-2 mb-3">
+            <div class="card stat-card retornos-card" id="retornos-card" style="cursor: pointer; background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%); color: white; border: none;">
+              <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                  <div>
+                    <h6 class="card-title text-white">Retornos Pendentes</h6>
+                    <h2 class="card-text fw-bold text-white" id="retornos-pendentes">0</h2>
+                  </div>
+                  <div class="bg-white bg-opacity-20 p-3 rounded">
+                    <i class="fas fa-undo text-white fa-2x"></i>
+                  </div>
+                </div>
+                <div class="mt-3">
+                  <span class="badge bg-white bg-opacity-25 text-white me-1" id="aguardando-chegada">0</span> Aguardando
+                  <span class="badge bg-white bg-opacity-25 text-white ms-1" id="bipando">0</span> Bipando
                 </div>
               </div>
             </div>
@@ -153,8 +175,75 @@ const Dashboard = {
             </div>
           </div>
         </div>
+
+        <style>
+          .retornos-card {
+            transition: all 0.3s ease;
+          }
+          
+          .retornos-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(255, 107, 53, 0.3) !important;
+          }
+          
+          .retornos-card.pulse {
+            animation: pulse 2s infinite;
+          }
+          
+          @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+          }
+        </style>
       </div>
     `;
+  },
+
+  // Carregar estatísticas de retornos
+  loadRetornosStats: async function() {
+    try {
+      const response = await fetch(`${app.API_URL}/api/retornos/stats`);
+      if (response.ok) {
+        const data = await response.json();
+        
+        // Atualizar números
+        const aguardandoChegada = data.data.aguardando_chegada || 0;
+        const bipando = data.data.bipando || 0;
+        const retornosPendentes = aguardandoChegada + bipando;
+        
+        this.updateElement('retornos-pendentes', retornosPendentes);
+        this.updateElement('aguardando-chegada', aguardandoChegada);
+        this.updateElement('bipando', bipando);
+        
+        // Adicionar efeito pulsante se houver retornos pendentes
+        const card = document.getElementById('retornos-card');
+        if (card) {
+          if (retornosPendentes > 0) {
+            card.classList.add('pulse');
+          } else {
+            card.classList.remove('pulse');
+          }
+        }
+      }
+    } catch (error) {
+      console.log('Erro ao carregar estatísticas de retornos:', error);
+      // Em caso de erro, manter valores zerados
+    }
+  },
+
+  // Adicionar click listener para o card de retornos
+  addRetornosCardListener: function() {
+    const retornosCard = document.getElementById('retornos-card');
+    if (retornosCard) {
+      retornosCard.addEventListener('click', function() {
+        // Simular clique no menu de retornos
+        const retornosLink = document.querySelector('[data-page="retornos"]');
+        if (retornosLink) {
+          retornosLink.click();
+        }
+      });
+    }
   },
 
   // Carregar estatísticas do dashboard
@@ -226,6 +315,10 @@ const Dashboard = {
       // Atualizar barras de progresso
       this.updateProgressBar('occupancy-bar', occupancyRate);
       this.updateProgressBar('efficiency-bar', loadingEfficiency);
+      
+      // Carregar estatísticas de retornos e adicionar listener
+      this.loadRetornosStats();
+      setTimeout(() => this.addRetornosCardListener(), 100);
       
     } catch (error) {
       console.error('Erro ao carregar estatísticas:', error);
