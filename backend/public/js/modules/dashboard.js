@@ -202,48 +202,15 @@ const Dashboard = {
 
   // Carregar estatísticas de retornos
   loadRetornosStats: async function() {
-    try {
-      const response = await fetch(`${app.API_URL}/api/retornos/stats`);
-      if (response.ok) {
-        const data = await response.json();
-        
-        // Atualizar números
-        const aguardandoChegada = data.data.aguardando_chegada || 0;
-        const bipando = data.data.bipando || 0;
-        const retornosPendentes = aguardandoChegada + bipando;
-        
-        this.updateElement('retornos-pendentes', retornosPendentes);
-        this.updateElement('aguardando-chegada', aguardandoChegada);
-        this.updateElement('bipando', bipando);
-        
-        // Adicionar efeito pulsante se houver retornos pendentes
-        const card = document.getElementById('retornos-card');
-        if (card) {
-          if (retornosPendentes > 0) {
-            card.classList.add('pulse');
-          } else {
-            card.classList.remove('pulse');
-          }
-        }
-      }
-    } catch (error) {
-      console.log('Erro ao carregar estatísticas de retornos:', error);
-      // Em caso de erro, manter valores zerados
-    }
+    // Esta função não é mais necessária pois os dados são carregados pela função global
+    // Mantida para compatibilidade, mas a função carregarEstatisticasRetornos() 
+    // já faz o trabalho no HTML
   },
 
   // Adicionar click listener para o card de retornos
   addRetornosCardListener: function() {
-    const retornosCard = document.getElementById('retornos-card');
-    if (retornosCard) {
-      retornosCard.addEventListener('click', function() {
-        // Simular clique no menu de retornos
-        const retornosLink = document.querySelector('[data-page="retornos"]');
-        if (retornosLink) {
-          retornosLink.click();
-        }
-      });
-    }
+    // O click listener já está definido no HTML via onclick="irParaRetornos()"
+    // Mantida para compatibilidade
   },
 
   // Carregar estatísticas do dashboard
@@ -295,17 +262,13 @@ const Dashboard = {
       const availableDocks = docksData.filter(dock => dock.status === 'available').length;
       const occupiedDocks = docksData.filter(dock => dock.status === 'occupied').length;
       
-        // Atualizar números (usando os IDs corretos do seu HTML)
+        // Atualizar números (usando os IDs corretos do HTML fixo)
         this.updateElement('carregamentos-hoje', totalLoadings);
         this.updateElement('docas-disponiveis', availableDocks);
         this.updateElement('taxa-ocupacao', `${occupancyRate}%`);
         this.updateElement('eficiencia', `${loadingEfficiency}%`);
       
-      // Carregar estatísticas de retornos e adicionar listener
-      this.loadRetornosStats();
-      setTimeout(() => this.addRetornosCardListener(), 100);
-      
-      // Configurar atualização automática das estatísticas de retornos
+      // Carregar estatísticas de retornos e configurar atualização automática
       this.setupRetornosAutoUpdate();
       
     } catch (error) {
