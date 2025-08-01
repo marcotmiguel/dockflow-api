@@ -507,7 +507,11 @@
         const response = await fetch('/api/retornos/stats');
         if (response.ok) {
           const data = await response.json();
-          const retornosPendentes = data.data.aguardando_chegada + data.data.bipando;
+          
+          // 🔧 CORREÇÃO: Adicionar verificação de segurança para propriedades
+          const aguardandoChegada = (data.data && data.data.aguardando_chegada) || 0;
+          const bipando = (data.data && data.data.bipando) || 0;
+          const retornosPendentes = aguardandoChegada + bipando;
           
           const elemento = document.getElementById('retornos-pendentes');
           if (elemento) {

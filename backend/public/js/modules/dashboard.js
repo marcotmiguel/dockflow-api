@@ -262,11 +262,25 @@ const Dashboard = {
       const availableDocks = docksData.filter(dock => dock.status === 'available').length;
       const occupiedDocks = docksData.filter(dock => dock.status === 'occupied').length;
       
-        // Atualizar números (usando os IDs corretos do HTML fixo)
-        this.updateElement('carregamentos-hoje', totalLoadings);
-        this.updateElement('docas-disponiveis', availableDocks);
-        this.updateElement('taxa-ocupacao', `${occupancyRate}%`);
-        this.updateElement('eficiencia', `${loadingEfficiency}%`);
+      // 🔧 CORREÇÃO: Declarar variáveis antes de usar
+      let occupancyRate = 0;
+      let loadingEfficiency = 0;
+      
+      // Calcular taxa de ocupação
+      if (totalDocks > 0) {
+        occupancyRate = Math.round((occupiedDocks / totalDocks) * 100);
+      }
+      
+      // Calcular eficiência de carregamento
+      if (totalLoadings > 0) {
+        loadingEfficiency = Math.round((completedLoadings / totalLoadings) * 100);
+      }
+      
+      // Atualizar números (usando os IDs corretos do HTML fixo)
+      this.updateElement('carregamentos-hoje', totalLoadings);
+      this.updateElement('docas-disponiveis', availableDocks);
+      this.updateElement('taxa-ocupacao', `${occupancyRate}%`);
+      this.updateElement('eficiencia', `${loadingEfficiency}%`);
       
       // Carregar estatísticas de retornos e configurar atualização automática
       this.setupRetornosAutoUpdate();
