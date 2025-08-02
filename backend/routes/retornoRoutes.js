@@ -4,16 +4,34 @@ const router = express.Router();
 // Importar database com promises
 const { db } = require('../database');
 
+// ===== MIDDLEWARE DE SEGURANÇA ADMIN =====
+
+const verificarAdmin = (req, res, next) => {
+    // ⚠️ ALTERE ESTA SENHA PARA SUA SENHA DE ADMINISTRADOR!
+    const SENHA_ADMIN = 'admin123'; 
+    
+    const senhaInformada = req.body.admin_password || req.headers['admin-password'];
+    
+    if (senhaInformada !== SENHA_ADMIN) {
+        console.log('🚫 ADMIN: Tentativa de acesso negada - senha incorreta');
+        return res.status(403).json({
+            success: false,
+            message: 'Acesso negado. Senha de administrador incorreta.'
+        });
+    }
+    
+    console.log('🔑 ADMIN: Acesso autorizado');
+    next();
+};
+
 // ===== ENDPOINTS PARA RETORNOS DE CARGA =====
 
-// GET /api/retornos - Listar todos os retornos (versão simplificada)
+// GET /api/retornos - Listar todos os retornos
 router.get('/', async (req, res) => {
     try {
         console.log('📋 GET /api/retornos - Buscando retornos');
         
-        // Query mais simples possível
         const query = 'SELECT * FROM retornos_carga ORDER BY created_at DESC LIMIT 50';
-        
         const [retornos] = await db.execute(query);
         
         console.log(`✅ ${retornos.length} retornos encontrados`);
@@ -34,12 +52,11 @@ router.get('/', async (req, res) => {
     }
 });
 
-// GET /api/retornos/stats - Estatísticas dos retornos
+// GET /api/retornos/stats - Estatísticas dos retornos (SEM DUPLICAÇÃO)
 router.get('/stats', async (req, res) => {
     try {
         console.log('📊 GET /api/retornos/stats - Buscando estatísticas');
         
-        // Queries mais simples
         const [aguardandoResult] = await db.execute('SELECT COUNT(*) as count FROM retornos_carga WHERE status = ?', ['aguardando_chegada']);
         const [bipandoResult] = await db.execute('SELECT COUNT(*) as count FROM retornos_carga WHERE status = ?', ['bipando']);
         const [conferidoResult] = await db.execute('SELECT COUNT(*) as count FROM retornos_carga WHERE status = ?', ['conferido']);
@@ -97,82 +114,6 @@ router.get('/:id', async (req, res) => {
         
     } catch (error) {
         console.error('❌ Erro ao buscar retorno:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Erro interno do servidor',
-            error: error.message
-        });
-    }
-});
-
-// GET /api/retornos/stats - Estatísticas dos retornos
-router.get('/stats', async (req, res) => {
-    try {
-        console.log('📊 GET /api/retornos/stats - Buscando estatísticas');
-        
-        // Queries mais simples
-        const [aguardandoResult] = await db.execute('SELECT COUNT(*) as count FROM retornos_carga WHERE status = ?', ['aguardando_chegada']);
-        const [bipandoResult] = await db.execute('SELECT COUNT(*) as count FROM retornos_carga WHERE status = ?', ['bipando']);
-        const [conferidoResult] = await db.execute('SELECT COUNT(*) as count FROM retornos_carga WHERE status = ?', ['conferido']);
-        
-        const hoje = new Date().toISOString().split('T')[0];
-        const [hojeResult] = await db.execute('SELECT COUNT(*) as count FROM retornos_carga WHERE DATE(created_at) = ? AND status = ?', [hoje, 'conferido']);
-        
-        const stats = {
-            aguardando_chegada: aguardandoResult[0].count || 0,
-            bipando: bipandoResult[0].count || 0,
-            conferido: conferidoResult[0].count || 0,
-            conferido_hoje: hojeResult[0].count || 0,
-            total_itens_retornados: 0
-        };
-        
-        console.log('✅ Estatísticas carregadas:', stats);
-        
-        res.json({
-            success: true,
-            stats: stats
-        });
-        
-    } catch (error) {
-        console.error('❌ Erro ao buscar estatísticas:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Erro interno do servidor',
-            error: error.message
-        });
-    }
-});
-
-// GET /api/retornos/stats - Estatísticas dos retornos
-router.get('/stats', async (req, res) => {
-    try {
-        console.log('📊 GET /api/retornos/stats - Buscando estatísticas');
-        
-        // Queries mais simples
-        const [aguardandoResult] = await db.execute('SELECT COUNT(*) as count FROM retornos_carga WHERE status = ?', ['aguardando_chegada']);
-        const [bipandoResult] = await db.execute('SELECT COUNT(*) as count FROM retornos_carga WHERE status = ?', ['bipando']);
-        const [conferidoResult] = await db.execute('SELECT COUNT(*) as count FROM retornos_carga WHERE status = ?', ['conferido']);
-        
-        const hoje = new Date().toISOString().split('T')[0];
-        const [hojeResult] = await db.execute('SELECT COUNT(*) as count FROM retornos_carga WHERE DATE(created_at) = ? AND status = ?', [hoje, 'conferido']);
-        
-        const stats = {
-            aguardando_chegada: aguardandoResult[0].count || 0,
-            bipando: bipandoResult[0].count || 0,
-            conferido: conferidoResult[0].count || 0,
-            conferido_hoje: hojeResult[0].count || 0,
-            total_itens_retornados: 0
-        };
-        
-        console.log('✅ Estatísticas carregadas:', stats);
-        
-        res.json({
-            success: true,
-            stats: stats
-        });
-        
-    } catch (error) {
-        console.error('❌ Erro ao buscar estatísticas:', error);
         res.status(500).json({
             success: false,
             message: 'Erro interno do servidor',
@@ -310,11 +251,9 @@ router.post('/:id/bipar-item', async (req, res) => {
         let itensRetornados = [];
         try {
             if (retornoData.itens_retornados) {
-                // Se já é string JSON, fazer parse
                 if (typeof retornoData.itens_retornados === 'string') {
                     itensRetornados = JSON.parse(retornoData.itens_retornados);
                 } else {
-                    // Se é objeto, usar diretamente
                     itensRetornados = Array.isArray(retornoData.itens_retornados) ? 
                         retornoData.itens_retornados : [];
                 }
@@ -339,16 +278,15 @@ router.post('/:id/bipar-item', async (req, res) => {
         
         console.log('📦 Itens após adicionar:', itensRetornados);
         
-        // Atualizar no banco - garantir que é JSON
+        // Atualizar no banco
         const itensJson = JSON.stringify(itensRetornados);
         
-        // Atualizar no banco
         const [result] = await db.execute(
             'UPDATE retornos_carga SET itens_retornados = ?, updated_at = NOW() WHERE id = ?',
             [itensJson, id]
         );
         
-        console.log(`✅ Item ${codigo_barras} salvo no banco como JSON:`, itensJson);
+        console.log(`✅ Item ${codigo_barras} salvo no banco como JSON`);
         
         res.json({
             success: true,
@@ -386,18 +324,15 @@ router.get('/:id/itens', async (req, res) => {
         let itens = [];
         const itensRaw = result[0].itens_retornados;
         
-        console.log(`📦 Dados brutos do banco:`, typeof itensRaw, itensRaw);
+        console.log(`📦 Dados brutos do banco:`, typeof itensRaw);
         
         try {
             if (itensRaw) {
                 if (typeof itensRaw === 'string') {
-                    // Se é string, fazer parse
                     itens = JSON.parse(itensRaw);
                 } else if (Array.isArray(itensRaw)) {
-                    // Se já é array, usar diretamente
                     itens = itensRaw;
                 } else if (typeof itensRaw === 'object') {
-                    // Se é objeto mas não array, pode ser um item único
                     itens = [itensRaw];
                 }
             }
@@ -406,7 +341,7 @@ router.get('/:id/itens', async (req, res) => {
             itens = [];
         }
         
-        console.log(`✅ ${itens.length} itens processados:`, itens);
+        console.log(`✅ ${itens.length} itens processados`);
         
         res.json({
             success: true,
@@ -482,6 +417,48 @@ router.delete('/:id/itens/:index', async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Erro interno do servidor',
+            error: error.message
+        });
+    }
+});
+
+// ===== ROTA ADMIN - LIMPEZA DE DADOS =====
+
+// DELETE /api/retornos/admin/limpar-dados - APENAS ADMINISTRADORES
+router.delete('/admin/limpar-dados', verificarAdmin, async (req, res) => {
+    try {
+        console.log('🔑 ADMIN: Iniciando limpeza completa de dados...');
+        
+        // Contar registros antes da limpeza
+        const [countBefore] = await db.execute('SELECT COUNT(*) as total FROM retornos_carga');
+        const totalAntes = countBefore[0].total;
+        
+        console.log(`📊 ADMIN: ${totalAntes} retornos encontrados antes da limpeza`);
+        
+        // Executar limpeza
+        const [result] = await db.execute('DELETE FROM retornos_carga');
+        
+        // Resetar auto increment para começar do ID 1
+        await db.execute('ALTER TABLE retornos_carga AUTO_INCREMENT = 1');
+        
+        console.log(`✅ ADMIN: Limpeza concluída - ${result.affectedRows} retornos removidos`);
+        
+        res.json({
+            success: true,
+            message: `Limpeza concluída com sucesso!`,
+            details: {
+                registros_removidos: result.affectedRows,
+                total_antes: totalAntes,
+                total_depois: 0
+            },
+            timestamp: new Date().toISOString()
+        });
+        
+    } catch (error) {
+        console.error('❌ ADMIN: Erro durante limpeza de dados:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erro interno durante limpeza de dados',
             error: error.message
         });
     }
