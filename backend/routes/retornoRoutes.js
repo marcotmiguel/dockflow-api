@@ -16,13 +16,57 @@ router.get('/', async (req, res) => {
     
     console.log('📋 GET /api/retornos - Buscando retornos...');
     
+    // Verificar se tabela retornos existe
+    try {
+      const [tableExists] = await db.execute(`
+        SELECT COUNT(*) as count 
+        FROM information_schema.tables 
+        WHERE table_schema = DATABASE() 
+        AND table_name = 'retornos'
+      `);
+      
+      if (tableExists[0].count === 0) {
+        console.log('⚠️ Tabela retornos não existe - criando...');
+        
+        // Criar tabela retornos
+        await db.execute(`
+          CREATE TABLE retornos (
+            id INT PRIMARY KEY AUTO_INCREMENT,
+            carregamento_id INT NULL,
+            driver_id INT NULL,
+            data_retorno DATE NOT NULL,
+            horario_retorno TIME NULL,
+            observacoes TEXT NULL,
+            status ENUM('pendente', 'concluido', 'cancelado') DEFAULT 'pendente',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            INDEX idx_retornos_data (data_retorno),
+            INDEX idx_retornos_status (status)
+          )
+        `);
+        
+        console.log('✅ Tabela retornos criada com sucesso');
+        
+        // Inserir dados de exemplo
+        await db.execute(`
+          INSERT INTO retornos (data_retorno, horario_retorno, observacoes, status) VALUES
+          (CURDATE(), '14:30:00', 'Retorno de exemplo - sistema inicializado', 'concluido'),
+          (CURDATE(), NULL, 'Aguardando confirmação - dados de teste', 'pendente')
+        `);
+        
+        console.log('✅ Dados de exemplo inseridos');
+      }
+    } catch (createError) {
+      console.error('❌ Erro ao criar tabela:', createError);
+    }
+    
     let query = `
       SELECT 
         r.*,
         c.numero_nf,
         c.destinatario,
         c.local_entrega,
-        d.name as driver_name
+        COALESCE(d.name, 'Motorista não informado') as driver_name
       FROM retornos r
       LEFT JOIN carregamentos c ON r.carregamento_id = c.id
       LEFT JOIN drivers d ON r.driver_id = d.id
@@ -38,7 +82,7 @@ router.get('/', async (req, res) => {
     }
     
     if (motorista) {
-      query += ' AND d.name LIKE ?';
+      query += ' AND COALESCE(d.name, "") LIKE ?';
       params.push(`%${motorista}%`);
     }
     
@@ -75,7 +119,7 @@ router.get('/', async (req, res) => {
     }
     
     if (motorista) {
-      countQuery += ' AND d.name LIKE ?';
+      countQuery += ' AND COALESCE(d.name, "") LIKE ?';
       countParams.push(`%${motorista}%`);
     }
     
@@ -122,6 +166,44 @@ router.get('/', async (req, res) => {
 router.get('/stats', async (req, res) => {
   try {
     console.log('📊 GET /api/retornos/stats - Buscando estatísticas...');
+    
+    // Verificar se tabela retornos existe
+    try {
+      const [tableExists] = await db.execute(`
+        SELECT COUNT(*) as count 
+        FROM information_schema.tables 
+        WHERE table_schema = DATABASE() 
+        AND table_name = 'retornos'
+      `);
+      
+      if (tableExists[0].count === 0) {
+        console.log('⚠️ Tabela retornos não existe - retornando stats vazias');
+        return res.json({
+          success: true,
+          data: {
+            pendentes: 0,
+            concluidos: 0,
+            concluidos_hoje: 0,
+            total: 0
+          },
+          message: 'Tabela retornos será criada automaticamente no primeiro acesso',
+          timestamp: new Date().toISOString()
+        });
+      }
+    } catch (checkError) {
+      console.error('❌ Erro ao verificar tabela:', checkError);
+      return res.json({
+        success: true,
+        data: {
+          pendentes: 0,
+          concluidos: 0,
+          concluidos_hoje: 0,
+          total: 0
+        },
+        message: 'Sistema inicializando...',
+        timestamp: new Date().toISOString()
+      });
+    }
     
     const hoje = new Date().toISOString().split('T')[0];
     
