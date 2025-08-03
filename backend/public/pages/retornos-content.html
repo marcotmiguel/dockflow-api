@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DockFlow - Retornos</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container-fluid py-4">
+        <!-- Alert Container -->
+        <div id="alert-container" class="position-fixed top-0 end-0 p-3" style="z-index: 9999;"></div>
+        
+        <!-- Header -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <h2><i class="fas fa-truck-loading"></i> Retornos de Carga</h2>
+                <p class="text-muted">Gerenciamento de retornos e conferências</p>
+            </div>
+            <div class="col-md-6 text-end">
+                <button class="btn btn-primary me-2" data-bs-toggle="modal" data-bs-target="#registrarRetornoModal">
+                    <i class="fas fa-plus"></i> Registrar Retorno
+                </button>
+                <button class="btn btn-outline-secondary" id="refresh-retornos">
+                    <i class="fas fa-sync-alt"></i> Atualizar
+                </button>
+            </div>
+        </div>
+        
+        <!-- Stats Cards -->
+        <div class="row mb-4">
+            <div class="col-md-2">
+                <div class="card bg-warning text-white">
+                    <div class="card-body text-center">
+                        <h3 id="aguardando-count">0</h3>
+                        <small>Aguardando</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card bg-primary text-white">
+                    <div class="card-body text-center">
+                        <h3 id="pendentes-count">0</h3>
+                        <small>Pendentes</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card bg-success text-white">
+                    <div class="card-body text-center">
+                        <h3 id="conferido-count">0</h3>
+                        <small>Conferidos</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card bg-info text-white">
+                    <div class="card-body text-center">
+                        <h3 id="conferido-hoje-count">0</h3>
+                        <small>Hoje</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card bg-secondary text-white">
+                    <div class="card-body text-center">
+                        <h3 id="total-retornos-count">0</h3>
+                        <small>Total</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Search -->
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <div class="input-group">
+                    <span class="input-group-text"><i class="fas fa-search"></i></span>
+                    <input type="text" class="form-control" id="search-retornos" placeholder="Buscar retornos...">
+                </div>
+            </div>
+        </div>
+        
+        <!-- Retornos List -->
+        <div class="row">
+            <div class="col-12">
+                <div id="retornos-container">
+                    <!-- Lista de retornos será renderizada aqui -->
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal Registrar Retorno -->
+    <div class="modal fade" id="registrarRetornoModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Registrar Retorno</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="registrar-retorno-form">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="retorno-nf" class="form-label">Número da NF *</label>
+                            <input type="text" class="form-control" id="retorno-nf" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="retorno-motorista" class="form-label">Nome do Motorista *</label>
+                            <input type="text" class="form-control" id="retorno-motorista" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="retorno-data" class="form-label">Data de Retorno *</label>
+                            <input type="date" class="form-control" id="retorno-data" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="retorno-horario" class="form-label">Horário de Retorno</label>
+                            <input type="time" class="form-control" id="retorno-horario">
+                        </div>
+                        <div class="mb-3">
+                            <label for="retorno-observacoes" class="form-label">Observações</label>
+                            <textarea class="form-control" id="retorno-observacoes" rows="3"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Registrar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- SEU RETORNOS-DASHBOARD.JS AQUI -->
+    <script>
+        // Cole aqui o código do retornos-dashboard.js corrigido
+    </script>
+</body>
+</html>

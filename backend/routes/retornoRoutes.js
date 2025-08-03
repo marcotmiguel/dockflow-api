@@ -112,16 +112,24 @@ router.get('/', async (req, res) => {
     }
     
     // Verificar quais colunas existem na tabela
-    let [columns] = [];
+    let columns = [];
+    let hasMotoristaColumn = false;
+    let hasNfColumn = false;
+    
     try {
-      [columns] = await db.execute('DESCRIBE retornos');
+      const [columnsResult] = await db.execute('DESCRIBE retornos');
+      columns = columnsResult;
       console.log('📊 Colunas da tabela retornos:', columns.map(c => c.Field));
+      
+      hasMotoristaColumn = columns.some(col => col.Field === 'motorista_nome');
+      hasNfColumn = columns.some(col => col.Field === 'numero_nf');
+      
     } catch (descError) {
       console.error('❌ Erro ao descrever tabela:', descError);
+      // Se der erro, assumir que as colunas não existem
+      hasMotoristaColumn = false;
+      hasNfColumn = false;
     }
-    
-    const hasMotoristaColumn = columns.some(col => col.Field === 'motorista_nome');
-    const hasNfColumn = columns.some(col => col.Field === 'numero_nf');
     
     // Query adaptável baseada nas colunas existentes
     let query = `SELECT r.*`;
