@@ -1,9 +1,10 @@
-// js/modules/retornos-dashboard.js - Módulo de Retornos para Dashboard (SEM DADOS MOCK)
+// js/modules/retornos-dashboard.js - Módulo de Retornos para Dashboard (VERSÃO CORRIGIDA)
 class RetornosDashboard {
     constructor() {
         this.retornos = [];
         this.stats = {};
         this.retornoAtual = null;
+        this.apiBaseUrl = '/api'; // Base URL da API
         
         console.log('🔄 Inicializando módulo de retornos...');
     }
@@ -37,10 +38,10 @@ class RetornosDashboard {
         this.retornos = [];
         this.stats = {
             aguardando_chegada: 0,
-            bipando: 0,
-            conferido: 0,
-            conferido_hoje: 0,
-            total_itens_retornados: 0
+            pendentes: 0,
+            concluidos: 0,
+            concluidos_hoje: 0,
+            total: 0
         };
         
         this.updateStatsDisplay();
@@ -53,20 +54,41 @@ class RetornosDashboard {
     // Carregar lista de retornos
     async loadRetornos() {
         try {
-            const response = await fetch('/api/retornos');
+            console.log('🔄 Fazendo requisição para /api/retornos...');
             
-            if (response.ok) {
-                const result = await response.json();
-                if (result.success) {
-                    this.retornos = result.data;
-                    this.renderRetornos();
-                    console.log(`📋 ${this.retornos.length} retornos carregados`);
-                } else {
-                    throw new Error(result.message);
-                }
-            } else {
+            const response = await fetch(`${this.apiBaseUrl}/retornos`);
+            console.log('📡 Status da resposta:', response.status);
+            
+            if (!response.ok) {
                 throw new Error(`Erro ${response.status}: ${response.statusText}`);
             }
+            
+            const result = await response.json();
+            console.log('📋 Resposta completa da API:', result);
+            
+            // VALIDAÇÃO ROBUSTA DOS DADOS
+            if (result && result.success && Array.isArray(result.data)) {
+                this.retornos = result.data;
+                console.log(`📋 ${this.retornos.length} retornos carregados`);
+                
+                this.renderRetornos();
+                
+                // Se há uma mensagem da API, mostrar
+                if (result.message) {
+                    console.log('📭 Mensagem da API:', result.message);
+                }
+                
+            } else {
+                console.warn('⚠️ Resposta da API inválida:', result);
+                this.retornos = [];
+                this.renderRetornos();
+                
+                // Se há uma mensagem de erro específica, mostrá-la
+                if (result && result.message) {
+                    console.log('📭 Mensagem da API:', result.message);
+                }
+            }
+            
         } catch (error) {
             console.error('❌ Erro ao carregar retornos:', error);
             
@@ -79,50 +101,119 @@ class RetornosDashboard {
         }
     }
     
-    // Carregar estatísticas
+    // Carregar estatísticas - VERSÃO CORRIGIDA
     async loadStats() {
         try {
-            const response = await fetch('/api/retornos/stats');
+            console.log('📊 Fazendo requisição para /api/retornos/stats...');
             
-            if (response.ok) {
-                const result = await response.json();
-                if (result.success) {
-                    this.stats = result.stats;
-                    this.updateStatsDisplay();
-                    console.log('📊 Estatísticas de retornos carregadas');
-                } else {
-                    throw new Error(result.message);
-                }
-            } else {
+            const response = await fetch(`${this.apiBaseUrl}/retornos/stats`);
+            console.log('📡 Status da resposta stats:', response.status);
+            
+            if (!response.ok) {
                 throw new Error(`Erro ${response.status}: ${response.statusText}`);
             }
+            
+            const result = await response.json();
+            console.log('📊 Resposta completa da API stats:', result);
+            
+            // VALIDAÇÃO ROBUSTA DOS DADOS
+            if (result && result.success && result.data) {
+                // Garantir que todos os campos existem com valores padrão
+                this.stats = {
+                    aguardando_chegada: result.data.aguardando_chegada || 0,
+                    pendentes: result.data.pendentes || 0,
+                    concluidos: result.data.concluidos || 0,
+                    concluidos_hoje: result.data.concluidos_hoje || 0,
+                    total: result.data.total || 0
+                };
+                
+                console.log('✅ Stats processadas:', this.stats);
+                this.updateStatsDisplay();
+                console.log('📊 Estatísticas de retornos carregadas');
+                
+            } else {
+                console.warn('⚠️ Resposta da API stats inválida:', result);
+                
+                // Usar dados padrão se a resposta for inválida
+                this.stats = {
+                    aguardando_chegada: 0,
+                    pendentes: 0,
+                    concluidos: 0,
+                    concluidos_hoje: 0,
+                    total: 0
+                };
+                
+                this.updateStatsDisplay();
+            }
+            
         } catch (error) {
             console.error('❌ Erro ao carregar estatísticas:', error);
+            
+            // SEMPRE garantir que stats existe com dados válidos
+            this.stats = {
+                aguardando_chegada: 0,
+                pendentes: 0,
+                concluidos: 0,
+                concluidos_hoje: 0,
+                total: 0
+            };
+            
+            this.updateStatsDisplay();
             this.showAlert(`Erro ao carregar estatísticas: ${error.message}`, 'warning');
         }
     }
     
-    // Atualizar display das estatísticas
+    // Atualizar display das estatísticas - VERSÃO CORRIGIDA
     updateStatsDisplay() {
-        const elements = {
-            'aguardando-count': this.stats.aguardando_chegada || 0,
-            'bipando-count': this.stats.bipando || 0,
-            'conferido-count': this.stats.conferido || 0,
-            'total-itens-retornados': this.stats.total_itens_retornados || 0
-        };
-        
-        Object.entries(elements).forEach(([id, value]) => {
-            const element = document.getElementById(id);
-            if (element) {
-                element.textContent = value;
+        try {
+            console.log('🔄 Atualizando display das estatísticas:', this.stats);
+            
+            // VALIDAÇÃO EXTRA - garantir que stats existe e tem as propriedades
+            if (!this.stats || typeof this.stats !== 'object') {
+                console.warn('⚠️ Stats inválidas recebidas:', this.stats);
+                this.stats = {
+                    aguardando_chegada: 0,
+                    pendentes: 0,
+                    concluidos: 0,
+                    concluidos_hoje: 0,
+                    total: 0
+                };
             }
-        });
+            
+            // Mapeamento correto dos elementos do DOM
+            const elements = {
+                'aguardando-count': this.stats.aguardando_chegada || 0,
+                'pendentes-count': this.stats.pendentes || 0,
+                'conferido-count': this.stats.concluidos || 0,
+                'conferido-hoje-count': this.stats.concluidos_hoje || 0,
+                'total-retornos-count': this.stats.total || 0
+            };
+            
+            // Atualizar elementos do DOM com segurança
+            Object.entries(elements).forEach(([elementId, value]) => {
+                const element = document.getElementById(elementId);
+                if (element) {
+                    element.textContent = value;
+                    console.log(`✅ ${elementId} = ${value}`);
+                } else {
+                    console.warn(`⚠️ Elemento ${elementId} não encontrado no DOM`);
+                }
+            });
+            
+            console.log('✅ Display das estatísticas atualizado com sucesso');
+            
+        } catch (error) {
+            console.error('❌ Erro ao atualizar display:', error);
+        }
     }
     
     // Renderizar lista de retornos
     renderRetornos() {
         const container = document.getElementById('retornos-container');
-        if (!container) return;
+        if (!container) {
+            console.warn('⚠️ Container retornos-container não encontrado');
+            return;
+        }
         
         if (this.retornos.length === 0) {
             container.innerHTML = `
@@ -165,20 +256,14 @@ class RetornosDashboard {
                     <div class="row align-items-center">
                         <div class="col-md-3">
                             <h6 class="mb-1">
-                                <i class="fas fa-user"></i> ${retorno.driver_name}
+                                <i class="fas fa-user"></i> ${retorno.motorista_nome || retorno.driver_name || 'Motorista não informado'}
                             </h6>
-                            <small class="text-muted">CPF: ${this.formatCpf(retorno.driver_cpf)}</small>
-                            <br>
-                            <small class="text-muted">Placa: ${retorno.vehicle_plate}</small>
+                            <small class="text-muted">NF: ${retorno.numero_nf || 'Não informada'}</small>
                         </div>
                         <div class="col-md-2">
-                            ${retorno.route_code ? `
-                                <i class="fas fa-route"></i> ${retorno.route_code}
-                                <br>
-                                <small class="text-muted">${retorno.route_description || 'Sem descrição'}</small>
-                            ` : `
-                                <small class="text-muted">Sem rota definida</small>
-                            `}
+                            <i class="fas fa-calendar"></i> ${this.formatDate(retorno.data_retorno)}
+                            <br>
+                            <small class="text-muted">${retorno.horario_retorno || 'Sem horário'}</small>
                         </div>
                         <div class="col-md-2">
                             <span class="badge bg-${this.getStatusBadgeColor(retorno.status)}">
@@ -190,12 +275,21 @@ class RetornosDashboard {
                         <div class="col-md-2">
                             <i class="fas fa-boxes"></i> ${itensBipados} itens
                             <br>
-                            <small class="text-muted">bipados</small>
+                            <small class="text-muted">processados</small>
                         </div>
                         <div class="col-md-3 text-end">
                             ${this.renderRetornoActions(retorno)}
                         </div>
                     </div>
+                    ${retorno.observacoes ? `
+                        <div class="row mt-2">
+                            <div class="col-12">
+                                <small class="text-muted">
+                                    <i class="fas fa-comment"></i> ${retorno.observacoes}
+                                </small>
+                            </div>
+                        </div>
+                    ` : ''}
                 </div>
             </div>
         `;
@@ -209,9 +303,9 @@ class RetornosDashboard {
             case 'aguardando_chegada':
                 actions.push(`
                     <button class="btn btn-sm btn-primary me-1" 
-                            onclick="window.RetornosDashboard.iniciarBipagem(${retorno.id})"
+                            onclick="window.RetornosDashboard.iniciarProcessamento(${retorno.id})"
                             data-retorno-id="${retorno.id}">
-                        <i class="fas fa-barcode"></i> Iniciar Bipagem
+                        <i class="fas fa-play"></i> Iniciar
                     </button>
                     <button class="btn btn-sm btn-outline-danger" 
                             onclick="window.RetornosDashboard.cancelarRetorno(${retorno.id})"
@@ -221,27 +315,27 @@ class RetornosDashboard {
                 `);
                 break;
                 
-            case 'bipando':
+            case 'pendente':
                 actions.push(`
                     <button class="btn btn-sm btn-success me-1" 
-                            onclick="window.RetornosDashboard.abrirBipagem(${retorno.id})"
-                            data-retorno-id="${retorno.id}">
-                        <i class="fas fa-barcode"></i> Continuar Bipagem
-                    </button>
-                    <button class="btn btn-sm btn-warning me-1" 
-                            onclick="window.RetornosDashboard.finalizarConferencia(${retorno.id})"
+                            onclick="window.RetornosDashboard.finalizarRetorno(${retorno.id})"
                             data-retorno-id="${retorno.id}">
                         <i class="fas fa-check"></i> Finalizar
+                    </button>
+                    <button class="btn btn-sm btn-warning me-1" 
+                            onclick="window.RetornosDashboard.editarRetorno(${retorno.id})"
+                            data-retorno-id="${retorno.id}">
+                        <i class="fas fa-edit"></i> Editar
                     </button>
                 `);
                 break;
                 
-            case 'conferido':
+            case 'concluido':
                 actions.push(`
                     <div class="text-success">
-                        <i class="fas fa-check-circle"></i> Conferido
+                        <i class="fas fa-check-circle"></i> Concluído
                         <br>
-                        <small class="text-muted">Processo concluído</small>
+                        <small class="text-muted">Processo finalizado</small>
                     </div>
                 `);
                 break;
@@ -260,214 +354,60 @@ class RetornosDashboard {
         return actions.join('');
     }
     
-    // Iniciar bipagem
-    async iniciarBipagem(id) {
+    // Iniciar processamento do retorno
+    async iniciarProcessamento(id) {
         try {
-            console.log(`🔄 Iniciando bipagem para retorno ${id}`);
+            console.log(`🔄 Iniciando processamento para retorno ${id}`);
             
-            const response = await fetch(`/api/retornos/${id}/status`, {
+            const response = await fetch(`${this.apiBaseUrl}/retornos/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ status: 'bipando' })
+                body: JSON.stringify({ status: 'pendente' })
             });
             
             if (response.ok) {
-                this.showAlert('Bipagem iniciada com sucesso!', 'success');
+                this.showAlert('Processamento iniciado com sucesso!', 'success');
                 await this.loadRetornos();
                 await this.loadStats();
-                this.abrirBipagem(id);
             } else {
                 const result = await response.json();
-                this.showAlert(`Erro ao iniciar bipagem: ${result.message}`, 'danger');
+                this.showAlert(`Erro ao iniciar processamento: ${result.message}`, 'danger');
             }
         } catch (error) {
-            console.error('❌ Erro ao iniciar bipagem:', error);
+            console.error('❌ Erro ao iniciar processamento:', error);
             this.showAlert('Erro de conexão. Verifique sua internet.', 'danger');
         }
     }
     
-    // Abrir modal de bipagem com controle melhorado
-    async abrirBipagem(id) {
-        console.log(`🔧 Abrindo bipagem para retorno ID: ${id}`);
-        
-        // Limpar estado anterior e definir novo ID
-        this.retornoAtual = null;
-        await new Promise(resolve => setTimeout(resolve, 100));
-        this.retornoAtual = id;
-        
-        console.log(`✅ Retorno atual definido: ${this.retornoAtual}`);
-        
-        await this.loadItensBipados(id);
-        
-        const modal = new bootstrap.Modal(document.getElementById('bipagemModal'));
-        modal.show();
-        
-        // Focar no campo código de barras
-        setTimeout(() => {
-            const input = document.getElementById('codigo-barras');
-            if (input) {
-                input.focus();
-                input.value = '';
-            }
-        }, 500);
-    }
-    
-    // Carregar itens já bipados
-    async loadItensBipados(id) {
-        try {
-            console.log(`📋 Carregando itens bipados do retorno ${id}`);
-            
-            const response = await fetch(`/api/retornos/${id}/itens`);
-            
-            if (response.ok) {
-                const result = await response.json();
-                console.log(`📦 Resultado loadItensBipados:`, result);
-                
-                if (result.success) {
-                    console.log(`✅ ${result.data.length} itens encontrados`);
-                    this.renderItensBipados(result.data);
-                } else {
-                    console.error('❌ Erro na resposta:', result.message);
-                    this.renderItensBipados([]);
-                }
-            } else {
-                console.error('❌ Erro na requisição:', response.status);
-                this.renderItensBipados([]);
-            }
-        } catch (error) {
-            console.error('❌ Erro ao carregar itens:', error);
-            this.renderItensBipados([]);
-        }
-    }
-    
-    // Renderizar itens bipados
-    renderItensBipados(itens) {
-        console.log(`🎨 Renderizando ${itens.length} itens bipados:`, itens);
-        
-        const container = document.getElementById('itens-bipados-list');
-        if (!container) {
-            console.error('❌ Container itens-bipados-list não encontrado');
-            return;
-        }
-        
-        if (itens.length === 0) {
-            container.innerHTML = `
-                <div class="text-center text-muted py-3">
-                    <i class="fas fa-barcode fa-2x mb-2"></i>
-                    <p>Nenhum item bipado ainda</p>
-                    <small>Use o scanner ou digite o código de barras</small>
-                </div>
-            `;
-            
-            const counter = document.getElementById('total-itens-bipados');
-            if (counter) {
-                counter.textContent = '0 itens';
-            }
-            return;
-        }
-        
-        const html = itens.map((item, index) => `
-            <div class="card mb-2">
-                <div class="card-body py-2">
-                    <div class="row align-items-center">
-                        <div class="col-md-3">
-                            <strong>${item.codigo_barras}</strong>
-                        </div>
-                        <div class="col-md-4">
-                            ${item.produto_nome}
-                        </div>
-                        <div class="col-md-2">
-                            Qtd: ${item.quantidade}
-                        </div>
-                        <div class="col-md-2">
-                            <small class="text-muted">
-                                ${this.formatDateTime(item.bipado_em)}
-                            </small>
-                        </div>
-                        <div class="col-md-1">
-                            <button class="btn btn-sm btn-outline-danger" 
-                                    onclick="window.RetornosDashboard.removerItem(${index})"
-                                    title="Remover item">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `).join('');
-        
-        console.log(`✅ HTML gerado para ${itens.length} itens`);
-        container.innerHTML = html;
-        
-        const counter = document.getElementById('total-itens-bipados');
-        if (counter) {
-            counter.textContent = `${itens.length} itens`;
-            console.log(`📊 Contador atualizado: ${itens.length} itens`);
-        }
-    }
-    
-    // Finalizar conferência com limpeza completa
-    async finalizarConferencia(id = null) {
-        const retornoId = id || this.retornoAtual;
-        
-        console.log(`🔧 Finalizando conferência para ID: ${retornoId}`);
-        
-        if (!retornoId) {
-            this.showAlert('Erro: ID do retorno não encontrado', 'danger');
-            return;
-        }
-        
-        if (!confirm(`Finalizar conferência do retorno ID ${retornoId}?\nTodos os itens bipados serão considerados conferidos.`)) {
+    // Finalizar retorno
+    async finalizarRetorno(id) {
+        if (!confirm('Finalizar este retorno? Esta ação não pode ser desfeita.')) {
             return;
         }
         
         try {
-            console.log(`📝 Enviando requisição para finalizar retorno ${retornoId}`);
+            console.log(`🔄 Finalizando retorno ${id}`);
             
-            const response = await fetch(`/api/retornos/${retornoId}/status`, {
+            const response = await fetch(`${this.apiBaseUrl}/retornos/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
-                    status: 'conferido',
-                    finalizado_em: new Date().toISOString(),
-                    finalizado_por: 'Sistema'
+                    status: 'concluido',
+                    data_conclusao: new Date().toISOString()
                 })
             });
             
-            const result = await response.json();
-            console.log(`📋 Resposta da API:`, result);
-            
             if (response.ok) {
-                console.log(`✅ Conferência finalizada com sucesso para retorno ${retornoId}`);
-                this.showAlert('Conferência finalizada com sucesso!', 'success');
-                
-                // Limpar estado completamente
-                if (this.retornoAtual === retornoId) {
-                    console.log(`🧹 Limpando retorno atual (era ${this.retornoAtual})`);
-                    this.retornoAtual = null;
-                }
-                
-                // Recarregar dados
-                setTimeout(async () => {
-                    await this.loadRetornos();
-                    await this.loadStats();
-                    console.log(`🔄 Dados recarregados após finalização`);
-                }, 500);
-                
-                // Fechar modal se estiver aberto
-                const modal = bootstrap.Modal.getInstance(document.getElementById('bipagemModal'));
-                if (modal) {
-                    console.log(`🚪 Fechando modal de bipagem`);
-                    modal.hide();
-                }
-                
+                this.showAlert('Retorno finalizado com sucesso!', 'success');
+                await this.loadRetornos();
+                await this.loadStats();
             } else {
-                console.error(`❌ Erro na API:`, result);
-                this.showAlert(`Erro: ${result.message || 'Erro desconhecido'}`, 'danger');
+                const result = await response.json();
+                this.showAlert(`Erro ao finalizar retorno: ${result.message}`, 'danger');
             }
         } catch (error) {
-            console.error('❌ Erro ao finalizar conferência:', error);
-            this.showAlert('Erro de conexão', 'danger');
+            console.error('❌ Erro ao finalizar retorno:', error);
+            this.showAlert('Erro de conexão. Verifique sua internet.', 'danger');
         }
     }
     
@@ -477,10 +417,13 @@ class RetornosDashboard {
         if (!motivo) return;
         
         try {
-            const response = await fetch(`/api/retornos/${id}/status`, {
+            const response = await fetch(`${this.apiBaseUrl}/retornos/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ status: 'cancelado', notes: motivo })
+                body: JSON.stringify({ 
+                    status: 'cancelado', 
+                    observacoes: motivo 
+                })
             });
             
             if (response.ok) {
@@ -497,44 +440,11 @@ class RetornosDashboard {
         }
     }
     
-    // Remover item bipado
-    async removerItem(index) {
-        if (!confirm('Tem certeza que deseja remover este item?')) {
-            return;
-        }
-        
-        try {
-            const response = await fetch(`/api/retornos/${this.retornoAtual}/itens/${index}`, {
-                method: 'DELETE'
-            });
-            
-            if (response.ok) {
-                this.showAlert('Item removido!', 'success');
-                await this.loadItensBipados(this.retornoAtual);
-            } else {
-                const result = await response.json();
-                this.showAlert(`Erro: ${result.message}`, 'danger');
-            }
-        } catch (error) {
-            console.error('❌ Erro ao remover item:', error);
-            this.showAlert('Erro de conexão', 'danger');
-        }
-    }
-    
-    // Função para limpar estado
-    limparEstado() {
-        console.log('🧹 Limpando estado do sistema...');
-        this.retornoAtual = null;
-        
-        const campos = ['codigo-barras', 'produto-nome', 'quantidade'];
-        campos.forEach(id => {
-            const campo = document.getElementById(id);
-            if (campo) {
-                campo.value = id === 'quantidade' ? '1' : '';
-            }
-        });
-        
-        console.log('✅ Estado limpo');
+    // Editar retorno
+    editarRetorno(id) {
+        // TODO: Implementar modal de edição
+        console.log(`📝 Editando retorno ${id}`);
+        this.showAlert('Funcionalidade de edição em desenvolvimento', 'info');
     }
     
     // Bind eventos
@@ -543,6 +453,7 @@ class RetornosDashboard {
         const refreshBtn = document.getElementById('refresh-retornos');
         if (refreshBtn) {
             refreshBtn.addEventListener('click', () => {
+                console.log('🔄 Botão atualizar clicado');
                 this.loadRetornos();
                 this.loadStats();
             });
@@ -556,25 +467,6 @@ class RetornosDashboard {
             });
         }
         
-        // Campo de código de barras
-        const codigoBarras = document.getElementById('codigo-barras');
-        if (codigoBarras) {
-            codigoBarras.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    this.biparItem();
-                }
-            });
-        }
-        
-        // Botão bipar
-        const biparBtn = document.getElementById('bipar-item-btn');
-        if (biparBtn) {
-            biparBtn.addEventListener('click', () => {
-                this.biparItem();
-            });
-        }
-        
         // Form registrar retorno
         const form = document.getElementById('registrar-retorno-form');
         if (form) {
@@ -582,123 +474,34 @@ class RetornosDashboard {
                 this.handleRegistrarRetorno(e);
             });
         }
-        
-        // Limpar estado quando modal for fechado
-        const bipagemModal = document.getElementById('bipagemModal');
-        if (bipagemModal) {
-            bipagemModal.addEventListener('hidden.bs.modal', () => {
-                console.log('🚪 Modal fechado - limpando estado');
-                this.limparEstado();
-            });
-        }
-    }
-    
-    // Bipar item
-    async biparItem() {
-        const codigoBarrasInput = document.getElementById('codigo-barras');
-        const produtoNomeInput = document.getElementById('produto-nome');
-        const quantidadeInput = document.getElementById('quantidade');
-        
-        if (!codigoBarrasInput || !produtoNomeInput || !quantidadeInput) {
-            this.showAlert('Erro: Campos do modal não encontrados', 'danger');
-            return;
-        }
-        
-        const codigoBarras = codigoBarrasInput.value.trim();
-        const produtoNome = produtoNomeInput.value.trim();
-        const quantidade = quantidadeInput.value || 1;
-        
-        console.log('🔍 Debug biparItem:');
-        console.log('   Código:', codigoBarras);
-        console.log('   Produto:', produtoNome);
-        console.log('   Quantidade:', quantidade);
-        console.log('   Retorno atual:', this.retornoAtual);
-        
-        if (!codigoBarras) {
-            this.showAlert('Digite o código de barras', 'warning');
-            codigoBarrasInput.focus();
-            return;
-        }
-        
-        if (!this.retornoAtual) {
-            this.showAlert('Erro: Nenhum retorno selecionado para bipagem', 'danger');
-            console.error('❌ ERRO: retornoAtual é null');
-            return;
-        }
-        
-        try {
-            console.log(`📦 Bipando item ${codigoBarras} no retorno ${this.retornoAtual}`);
-            
-            const requestBody = {
-                codigo_barras: codigoBarras,
-                produto_nome: produtoNome || 'Produto sem nome',
-                quantidade: parseInt(quantidade),
-                bipado_em: new Date().toISOString(),
-                retorno_id: this.retornoAtual
-            };
-            
-            console.log('📋 Dados enviados:', requestBody);
-            
-            const response = await fetch(`/api/retornos/${this.retornoAtual}/bipar-item`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(requestBody)
-            });
-            
-            const result = await response.json();
-            console.log('📋 Resposta da bipagem:', result);
-            
-            if (response.ok) {
-                console.log('✅ Item bipado com sucesso:', result);
-                this.showAlert(`Item ${codigoBarras} bipado com sucesso!`, 'success');
-                
-                // Limpar campos
-                codigoBarrasInput.value = '';
-                produtoNomeInput.value = '';
-                quantidadeInput.value = '1';
-                
-                // Recarregar APENAS o retorno atual
-                console.log(`🔄 Recarregando itens do retorno ${this.retornoAtual}`);
-                await this.loadItensBipados(this.retornoAtual);
-                
-                // Focar novamente no código de barras
-                setTimeout(() => {
-                    codigoBarrasInput.focus();
-                }, 100);
-                
-            } else {
-                console.error('❌ Erro ao bipar:', result);
-                this.showAlert(`Erro: ${result.message || 'Erro desconhecido'}`, 'danger');
-            }
-        } catch (error) {
-            console.error('❌ Erro ao bipar item:', error);
-            this.showAlert('Erro de conexão', 'danger');
-        }
     }
     
     // Handle registrar retorno
     async handleRegistrarRetorno(event) {
         event.preventDefault();
         
-        const cpf = document.getElementById('retorno-cpf')?.value;
-        const nome = document.getElementById('retorno-nome')?.value;
-        const placa = document.getElementById('retorno-placa')?.value;
-        const telefone = document.getElementById('retorno-telefone')?.value;
+        const numero_nf = document.getElementById('retorno-nf')?.value;
+        const motorista_nome = document.getElementById('retorno-motorista')?.value;
+        const data_retorno = document.getElementById('retorno-data')?.value;
+        const horario_retorno = document.getElementById('retorno-horario')?.value;
+        const observacoes = document.getElementById('retorno-observacoes')?.value;
         
-        if (!cpf || !nome || !placa) {
+        if (!numero_nf || !motorista_nome || !data_retorno) {
             this.showAlert('Preencha todos os campos obrigatórios', 'warning');
             return;
         }
         
         try {
-            const response = await fetch('/api/retornos', {
+            const response = await fetch(`${this.apiBaseUrl}/retornos`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    driver_cpf: cpf,
-                    driver_name: nome,
-                    vehicle_plate: placa,
-                    phone_number: telefone
+                    numero_nf,
+                    motorista_nome,
+                    data_retorno,
+                    horario_retorno,
+                    observacoes,
+                    status: 'aguardando_chegada'
                 })
             });
             
@@ -740,8 +543,8 @@ class RetornosDashboard {
     getStatusClass(status) {
         const classes = {
             'aguardando_chegada': 'status-aguardando',
-            'bipando': 'status-bipando',
-            'conferido': 'status-conferido',
+            'pendente': 'status-pendente',
+            'concluido': 'status-concluido',
             'cancelado': 'status-cancelado'
         };
         return classes[status] || '';
@@ -750,8 +553,8 @@ class RetornosDashboard {
     getStatusText(status) {
         const texts = {
             'aguardando_chegada': 'Aguardando Chegada',
-            'bipando': 'Bipando',
-            'conferido': 'Conferido',
+            'pendente': 'Pendente',
+            'concluido': 'Concluído',
             'cancelado': 'Cancelado'
         };
         return texts[status] || status;
@@ -760,38 +563,55 @@ class RetornosDashboard {
     getStatusBadgeColor(status) {
         const colors = {
             'aguardando_chegada': 'warning',
-            'bipando': 'primary',
-            'conferido': 'success',
+            'pendente': 'primary',
+            'concluido': 'success',
             'cancelado': 'danger'
         };
         return colors[status] || 'secondary';
     }
     
-    formatCpf(cpf) {
-        if (!cpf) return '';
-        return cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+    formatDate(dateString) {
+        if (!dateString) return 'Sem data';
+        
+        try {
+            const date = new Date(dateString);
+            return date.toLocaleDateString('pt-BR');
+        } catch (e) {
+            return dateString;
+        }
     }
     
     formatDateTime(timestamp) {
         if (!timestamp) return '';
-        const date = new Date(timestamp);
-        return date.toLocaleString('pt-BR');
+        
+        try {
+            const date = new Date(timestamp);
+            return date.toLocaleString('pt-BR');
+        } catch (e) {
+            return timestamp;
+        }
     }
     
     timeAgo(timestamp) {
-        const now = new Date();
-        const time = new Date(timestamp);
-        const diff = now - time;
-        const minutes = Math.floor(diff / 60000);
+        if (!timestamp) return 'Sem data';
         
-        if (minutes < 1) return 'Agora mesmo';
-        if (minutes < 60) return `${minutes}min atrás`;
-        
-        const hours = Math.floor(minutes / 60);
-        if (hours < 24) return `${hours}h atrás`;
-        
-        const days = Math.floor(hours / 24);
-        return `${days}d atrás`;
+        try {
+            const now = new Date();
+            const time = new Date(timestamp);
+            const diff = now - time;
+            const minutes = Math.floor(diff / 60000);
+            
+            if (minutes < 1) return 'Agora mesmo';
+            if (minutes < 60) return `${minutes}min atrás`;
+            
+            const hours = Math.floor(minutes / 60);
+            if (hours < 24) return `${hours}h atrás`;
+            
+            const days = Math.floor(hours / 24);
+            return `${days}d atrás`;
+        } catch (e) {
+            return 'Tempo inválido';
+        }
     }
     
     // Mostrar alerta
@@ -827,14 +647,13 @@ class RetornosDashboard {
 window.RetornosDashboard = new RetornosDashboard();
 
 // Funções globais para os botões funcionarem
-window.iniciarBipagem = (id) => window.RetornosDashboard.iniciarBipagem(id);
-window.continuarBipagem = (id) => window.RetornosDashboard.abrirBipagem(id);
-window.finalizarConferencia = (id) => window.RetornosDashboard.finalizarConferencia(id);
+window.iniciarProcessamento = (id) => window.RetornosDashboard.iniciarProcessamento(id);
+window.finalizarRetorno = (id) => window.RetornosDashboard.finalizarRetorno(id);
 window.cancelarRetorno = (id) => window.RetornosDashboard.cancelarRetorno(id);
-window.removerItem = (index) => window.RetornosDashboard.removerItem(index);
+window.editarRetorno = (id) => window.RetornosDashboard.editarRetorno(id);
 
 // Inicializar quando a página carregar
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('🚀 Inicializando sistema de retornos (VERSÃO LIMPA)...');
+    console.log('🚀 Inicializando sistema de retornos (VERSÃO CORRIGIDA)...');
     window.RetornosDashboard.init();
 });
