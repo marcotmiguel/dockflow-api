@@ -16,15 +16,35 @@ const ensureRetornosTable = async () => {
     console.log('🔍 Verificando existência da tabela retornos...');
     
     // Método mais simples para verificar tabela
-    await db.execute('DESCRIBE retornos');
+    const [columns] = await db.execute('DESCRIBE retornos');
     console.log('✅ Tabela retornos já existe');
+    
+    // Verificar se tem as colunas necessárias
+    const columnNames = columns.map(col => col.Field);
+    const needsMotoristaColumn = !columnNames.includes('motorista_nome');
+    const needsNfColumn = !columnNames.includes('numero_nf');
+    
+    if (needsMotoristaColumn || needsNfColumn) {
+      console.log('🔧 Adicionando colunas faltantes...');
+      
+      if (needsMotoristaColumn) {
+        await db.execute('ALTER TABLE retornos ADD COLUMN motorista_nome VARCHAR(100) NULL');
+        console.log('✅ Coluna motorista_nome adicionada');
+      }
+      
+      if (needsNfColumn) {
+        await db.execute('ALTER TABLE retornos ADD COLUMN numero_nf VARCHAR(50) NULL');
+        console.log('✅ Coluna numero_nf adicionada');
+      }
+    }
+    
     return true;
     
   } catch (error) {
     console.log('⚠️ Tabela retornos não existe - criando...');
     
     try {
-      // Criar tabela sem foreign keys para evitar problemas
+      // Criar tabela completa
       await db.execute(`
         CREATE TABLE IF NOT EXISTS retornos (
           id INT PRIMARY KEY AUTO_INCREMENT,
@@ -91,15 +111,34 @@ router.get('/', async (req, res) => {
       });
     }
     
-    // Query simplificada sem JOINs complexos
-    let query = `
-      SELECT 
-        r.*,
-        COALESCE(r.motorista_nome, 'Motorista não informado') as driver_name,
-        COALESCE(r.numero_nf, 'NF não informada') as numero_nf_display
-      FROM retornos r
-      WHERE 1=1
-    `;
+    // Verificar quais colunas existem na tabela
+    let [columns] = [];
+    try {
+      [columns] = await db.execute('DESCRIBE retornos');
+      console.log('📊 Colunas da tabela retornos:', columns.map(c => c.Field));
+    } catch (descError) {
+      console.error('❌ Erro ao descrever tabela:', descError);
+    }
+    
+    const hasMotoristaColumn = columns.some(col => col.Field === 'motorista_nome');
+    const hasNfColumn = columns.some(col => col.Field === 'numero_nf');
+    
+    // Query adaptável baseada nas colunas existentes
+    let query = `SELECT r.*`;
+    
+    if (hasMotoristaColumn) {
+      query += `, COALESCE(r.motorista_nome, 'Motorista não informado') as driver_name`;
+    } else {
+      query += `, 'Motorista não informado' as driver_name`;
+    }
+    
+    if (hasNfColumn) {
+      query += `, COALESCE(r.numero_nf, 'NF não informada') as numero_nf_display`;
+    } else {
+      query += `, 'NF não informada' as numero_nf_display`;
+    }
+    
+    query += ` FROM retornos r WHERE 1=1`;
     
     let params = [];
     
@@ -110,7 +149,11 @@ router.get('/', async (req, res) => {
     }
     
     if (motorista) {
-      query += ' AND COALESCE(r.motorista_nome, "") LIKE ?';
+      if (hasMotoristaColumn) {
+        query += ' AND COALESCE(r.motorista_nome, "") LIKE ?';
+      } else {
+        query += ' AND 1=1'; // Ignorar filtro se coluna não existe
+      }
       params.push(`%${motorista}%`);
     }
     
@@ -145,8 +188,11 @@ router.get('/', async (req, res) => {
     }
     
     if (motorista) {
-      countQuery += ' AND COALESCE(motorista_nome, "") LIKE ?';
-      countParams.push(`%${motorista}%`);
+      if (hasMotoristaColumn) {
+        countQuery += ' AND COALESCE(motorista_nome, "") LIKE ?';
+        countParams.push(`%${motorista}%`);
+      }
+      // Se não tem a coluna, ignorar o filtro
     }
     
     if (data_inicio) {
