@@ -1,4 +1,4 @@
-// js/modules/retornos-dashboard.js - Módulo de Retornos para Dashboard (VERSÃO CORRIGIDA)
+// js/modules/retornos-dashboard.js - Módulo de Retornos para Dashboard (VERSÃO CORRIGIDA COMPLETA)
 class RetornosDashboard {
     constructor() {
         this.retornos = [];
@@ -180,30 +180,66 @@ class RetornosDashboard {
                 };
             }
             
-            // Mapeamento correto dos elementos do DOM
-            const elements = {
-                'aguardando-count': this.stats.aguardando_chegada || 0,
-                'pendentes-count': this.stats.pendentes || 0,
-                'conferido-count': this.stats.concluidos || 0,
-                'conferido-hoje-count': this.stats.concluidos_hoje || 0,
-                'total-retornos-count': this.stats.total || 0
-            };
+            // Tentar atualizar elementos específicos primeiro
+            const specificElements = [
+                { ids: ['aguardando-count', 'retornos-aguardando'], value: this.stats.aguardando_chegada || 0 },
+                { ids: ['pendentes-count', 'retornos-pendentes'], value: this.stats.pendentes || 0 },
+                { ids: ['conferido-count', 'retornos-concluidos'], value: this.stats.concluidos || 0 },
+                { ids: ['conferido-hoje-count', 'retornos-hoje'], value: this.stats.concluidos_hoje || 0 },
+                { ids: ['total-retornos-count', 'retornos-total'], value: this.stats.total || 0 }
+            ];
             
-            // Atualizar elementos do DOM com segurança
-            Object.entries(elements).forEach(([elementId, value]) => {
-                const element = document.getElementById(elementId);
-                if (element) {
-                    element.textContent = value;
-                    console.log(`✅ ${elementId} = ${value}`);
-                } else {
-                    console.warn(`⚠️ Elemento ${elementId} não encontrado no DOM`);
-                }
+            specificElements.forEach(item => {
+                item.ids.forEach(id => {
+                    const element = document.getElementById(id);
+                    if (element) {
+                        element.textContent = item.value;
+                        console.log(`✅ ${id} = ${item.value}`);
+                    }
+                });
             });
+            
+            // Método alternativo: procurar cards do dashboard automaticamente
+            this.updateDashboardCards();
             
             console.log('✅ Display das estatísticas atualizado com sucesso');
             
         } catch (error) {
             console.error('❌ Erro ao atualizar display:', error);
+        }
+    }
+    
+    // Método para atualizar cards do dashboard automaticamente
+    updateDashboardCards() {
+        try {
+            console.log('🔍 Procurando cards do dashboard...');
+            
+            // Procurar por cards com números grandes (padrão dashboard)
+            const cards = document.querySelectorAll('.card');
+            console.log(`📊 Encontrados ${cards.length} cards no dashboard`);
+            
+            cards.forEach((card, index) => {
+                const text = card.textContent.toLowerCase();
+                const numberElement = card.querySelector('.display-4, .h1, .h2, .h3, h1, h2, h3') ||
+                                    card.querySelector('[class*="display"], [class*="h-"]') ||
+                                    card.querySelector('div:first-child');
+                
+                if (numberElement && text.includes('retorno')) {
+                    // Detectar tipo de card pelo texto
+                    if (text.includes('pendente')) {
+                        numberElement.textContent = this.stats.pendentes || 0;
+                        console.log(`✅ Card ${index} "Retornos Pendentes" atualizado:`, this.stats.pendentes);
+                    } else {
+                        numberElement.textContent = this.stats.total || 0;
+                        console.log(`✅ Card ${index} "Retornos Total" atualizado:`, this.stats.total);
+                    }
+                }
+            });
+            
+            console.log('✅ Atualização de cards concluída');
+            
+        } catch (error) {
+            console.error('❌ Erro ao atualizar cards do dashboard:', error);
         }
     }
     
@@ -654,6 +690,6 @@ window.editarRetorno = (id) => window.RetornosDashboard.editarRetorno(id);
 
 // Inicializar quando a página carregar
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('🚀 Inicializando sistema de retornos (VERSÃO CORRIGIDA)...');
+    console.log('🚀 Inicializando sistema de retornos (VERSÃO CORRIGIDA COMPLETA)...');
     window.RetornosDashboard.init();
 });
