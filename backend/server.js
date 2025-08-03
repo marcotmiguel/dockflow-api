@@ -1,4 +1,4 @@
-// server.js - VERSÃO UNIFICADA COM PROMISES + RETORNOS
+// server.js - REFATORADO COM NOVAS ROTAS ORGANIZADAS
 require('dotenv').config();
 
 const express = require('express');
@@ -88,13 +88,14 @@ app.get('/', (req, res) => {
       auth: '/api/auth',
       routes: '/api/routes',
       docks: '/api/docks',
-      loadings: '/api/loadings',
+      loadings: '/api/loadings',  // ← NOVO: carregamentos organizados
+      queue: '/api/queue',        // ← NOVO: fila separada
       drivers: '/api/drivers',
       vehicles: '/api/vehicles',
       products: '/api/products',
       users: '/api/users',
-      retornos: '/api/retornos',  // ← NOVO ENDPOINT
-      carregamentos: '/api/carregamentos'
+      retornos: '/api/retornos',
+      carregamentos: '/api/carregamentos' // ← LEGACY: manter por compatibilidade
     }
   });
 });
@@ -405,16 +406,23 @@ app.get('/api/loadings/today', async (req, res) => {
   }
 });
 
-// 📡 Carregar rotas restantes (que agora usam o mesmo database)
+// 📡 Carregar rotas refatoradas e existentes
 const loadWorkingRoutes = () => {
   const workingRoutes = [
+    // ✅ ROTAS REFATORADAS (novas)
+    { path: '/api/loadings', file: './routes/loadingRoutes', name: 'loadingRoutes (NOVO)' },
+    { path: '/api/queue', file: './routes/queueRoutes', name: 'queueRoutes (NOVO)' },
+    
+    // ✅ ROTAS EXISTENTES (mantidas)
     { path: '/api/docks', file: './routes/dockRoutes', name: 'dockRoutes' },
     { path: '/api/products', file: './routes/productRoutes', name: 'productRoutes' },
     { path: '/api/drivers', file: './routes/driverRoutes', name: 'driverRoutes' },
     { path: '/api/users', file: './routes/userRoutes', name: 'userRoutes' },
     { path: '/api/routes', file: './routes/routeRoutes', name: 'routeRoutes' },
-    { path: '/api/carregamentos', file: './routes/carregamentoRoutes', name: 'carregamentoRoutes' },
-    { path: '/api/retornos', file: './routes/retornoRoutes', name: 'retornoRoutes' } // ← NOVA ROTA
+    { path: '/api/retornos', file: './routes/retornoRoutes', name: 'retornoRoutes' },
+    
+    // 🔄 ROTA LEGACY (compatibilidade)
+    { path: '/api/carregamentos', file: './routes/carregamentoRoutes', name: 'carregamentoRoutes (LEGACY)' }
   ];
 
   workingRoutes.forEach(({ path, file, name }) => {
@@ -428,6 +436,7 @@ const loadWorkingRoutes = () => {
   });
   
   console.log('✅ Rotas diretas de vehicles e loadings criadas');
+  console.log('🔄 Sistema refatorado - URLs padronizadas');
 };
 
 // 🚀 Iniciar o servidor
@@ -441,10 +450,13 @@ const startServer = () => {
     console.log(`🏥 Health check: http://localhost:${PORT}/api/health`);
     console.log(`🌐 Interface: http://localhost:${PORT}/carregamento.html`);
     console.log(`📋 API: http://localhost:${PORT}/api`);
+    console.log(`🚛 Carregamentos: http://localhost:${PORT}/api/loadings`);
+    console.log(`⏰ Fila: http://localhost:${PORT}/api/queue`);
     console.log(`🔄 Retornos: http://localhost:${PORT}/api/retornos`);
     console.log(`🔐 Segurança: ATIVADA`);
     console.log(`🛡️ Rate limiting: ATIVADO`);
     console.log(`🌐 Railway IPv6: CONFIGURADO`);
+    console.log(`✨ REFATORAÇÃO FASE 1: CONCLUÍDA`);
     console.log('🚀 ========================================\n');
   });
 
