@@ -1,7 +1,8 @@
 const mysql = require('mysql2/promise');
+const bcrypt = require('bcryptjs');
 require('dotenv').config();
 
-// Configuração para Railway com suporte IPv6
+// Configuração para Railway com suporte IPv6 - SEM PARÂMETROS INVÁLIDOS
 const createDatabaseConnection = () => {
     const config = {
         host: process.env.MYSQLHOST || process.env.DB_HOST || 'localhost',
@@ -9,15 +10,21 @@ const createDatabaseConnection = () => {
         user: process.env.MYSQLUSER || process.env.DB_USER || 'root',
         password: process.env.MYSQLPASSWORD || process.env.DB_PASSWORD || '',
         database: process.env.MYSQLDATABASE || process.env.DB_NAME || 'railway',
+        
+        // ✅ APENAS PARÂMETROS VÁLIDOS PARA MYSQL2
         waitForConnections: true,
         connectionLimit: 10,
         queueLimit: 0,
-        acquireTimeout: 60000,
-        timeout: 60000,
-        reconnect: true
+        connectTimeout: 60000,
+        // ❌ REMOVIDOS: acquireTimeout, timeout, reconnect (causam warnings)
+        
+        // Configurações SSL para produção
+        ssl: process.env.NODE_ENV === 'production' ? {
+            rejectUnauthorized: false
+        } : undefined
     };
 
-    // Suporte IPv6 para Railway (correção crítica!)
+    // Suporte IPv6 para Railway
     if (process.env.MYSQLHOST) {
         config.family = 0; // Enable IPv6 support for Railway
         console.log('🌐 Configurando IPv6 para Railway');
@@ -55,20 +62,21 @@ const initializeDatabase = async () => {
     try {
         console.log('🏗️ Inicializando banco de dados...');
         
-        // Criar tabela de usuários se não existir
+        // Criar tabela de usuários com roles corretas
         await db.execute(`
             CREATE TABLE IF NOT EXISTS users (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 email VARCHAR(255) UNIQUE NOT NULL,
                 password VARCHAR(255) NOT NULL,
                 name VARCHAR(255) NOT NULL,
-                role VARCHAR(50) DEFAULT 'user',
+                role ENUM('operador', 'analista', 'admin', 'desenvolvedor') DEFAULT 'operador',
+                status ENUM('active', 'inactive') DEFAULT 'active',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
             )
         `);
 
-        // Criar tabela de carregamentos se não existir
+        // Criar tabela de carregamentos
         await db.execute(`
             CREATE TABLE IF NOT EXISTS carregamentos (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -83,30 +91,102 @@ const initializeDatabase = async () => {
             )
         `);
 
-        // Verificar se usuário admin existe
-        const [adminExists] = await db.execute(
-            'SELECT COUNT(*) as count FROM users WHERE email = ?',
-            ['admin@dockflow.com']
-        );
+        // Criar tabela de retornos (para o sistema)
+        await db.execute(`
+            CREATE TABLE IF NOT EXISTS retornos (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                cliente VARCHAR(255) NOT NULL,
+                produto VARCHAR(255) NOT NULL,
+                quantidade DECIMAL(10,2) NOT NULL,
+                motivo TEXT,
+                status ENUM('pendente', 'processando', 'concluido') DEFAULT 'pendente',
+                user_id INT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            )
+        `);
 
-        // Criar usuário admin se não existir
-        if (adminExists[0].count === 0) {
-            await db.execute(`
-                INSERT INTO users (email, password, name, role) 
-                VALUES ('admin@dockflow.com', 'admin123', 'Administrator', 'admin')
-            `);
-            console.log('👤 Usuário admin criado: admin@dockflow.com / admin123');
-        } else {
-            console.log('👤 Usuário admin já existe');
+        // Verificar e criar usuários padrão
+        await createDefaultUsers();
+
+        // Inserir dados de exemplo
+        await insertSampleData();
+
+        console.log('✅ Banco de dados inicializado com sucesso!');
+    } catch (error) {
+        console.error('❌ Erro ao inicializar banco:', error.message);
+        throw error;
+    }
+};
+
+// Criar usuários padrão do sistema
+const createDefaultUsers = async () => {
+    const defaultUsers = [
+        {
+            email: 'dev@dockflow.com',
+            password: 'DockFlow2025!',
+            name: 'Desenvolvedor',
+            role: 'desenvolvedor'
+        },
+        {
+            email: 'admin@dockflow.com', 
+            password: 'Admin2025!',
+            name: 'Administrador',
+            role: 'admin'
+        },
+        {
+            email: 'analista@dockflow.com',
+            password: 'Analista2025!', 
+            name: 'Analista',
+            role: 'analista'
+        },
+        {
+            email: 'operador@dockflow.com',
+            password: 'Operador2025!',
+            name: 'Operador', 
+            role: 'operador'
         }
+    ];
 
-        // Inserir dados de exemplo se não existirem
+    for (const user of defaultUsers) {
+        try {
+            // Verificar se usuário já existe
+            const [exists] = await db.execute(
+                'SELECT id FROM users WHERE email = ?',
+                [user.email]
+            );
+
+            if (exists.length === 0) {
+                // Hash da senha
+                const hashedPassword = await bcrypt.hash(user.password, 12);
+                
+                // Criar usuário
+                await db.execute(
+                    'INSERT INTO users (email, password, name, role) VALUES (?, ?, ?, ?)',
+                    [user.email, hashedPassword, user.name, user.role]
+                );
+                
+                console.log(`👤 Usuário criado: ${user.email} (${user.role})`);
+            } else {
+                console.log(`👤 Usuário já existe: ${user.email}`);
+            }
+        } catch (error) {
+            console.error(`❌ Erro ao criar usuário ${user.email}:`, error.message);
+        }
+    }
+};
+
+// Inserir dados de exemplo
+const insertSampleData = async () => {
+    try {
+        // Verificar se já existem carregamentos
         const [carregamentosCount] = await db.execute('SELECT COUNT(*) as count FROM carregamentos');
         
         if (carregamentosCount[0].count === 0) {
             const exemploCarregamentos = [
                 ['Navio Alpha', 'Soja', 5000.00, 'aguardando'],
-                ['Navio Beta', 'Milho', 3200.50, 'carregando'],
+                ['Navio Beta', 'Milho', 3200.50, 'carregando'], 
                 ['Navio Gamma', 'Trigo', 4100.25, 'concluido']
             ];
 
@@ -116,13 +196,30 @@ const initializeDatabase = async () => {
                     carregamento
                 );
             }
-            console.log('📦 Dados de exemplo inseridos');
+            console.log('📦 Carregamentos de exemplo inseridos');
         }
 
-        console.log('✅ Banco de dados inicializado com sucesso!');
+        // Verificar se já existem retornos
+        const [retornosCount] = await db.execute('SELECT COUNT(*) as count FROM retornos');
+        
+        if (retornosCount[0].count === 0) {
+            const exemploRetornos = [
+                ['Cliente A', 'Produto X', 100.50, 'Produto danificado', 'pendente'],
+                ['Cliente B', 'Produto Y', 250.00, 'Quantidade incorreta', 'processando'],
+                ['Cliente C', 'Produto Z', 75.25, 'Prazo vencido', 'concluido']
+            ];
+
+            for (const retorno of exemploRetornos) {
+                await db.execute(
+                    'INSERT INTO retornos (cliente, produto, quantidade, motivo, status) VALUES (?, ?, ?, ?, ?)',
+                    retorno
+                );
+            }
+            console.log('🔄 Retornos de exemplo inseridos');
+        }
+
     } catch (error) {
-        console.error('❌ Erro ao inicializar banco:', error.message);
-        throw error;
+        console.error('❌ Erro ao inserir dados de exemplo:', error.message);
     }
 };
 
