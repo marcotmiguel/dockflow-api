@@ -831,6 +831,34 @@ app.get('/api/debug/verify-dev', async (req, res) => {
   }
 });
 
+// Adicione esta linha no seu server.js, junto com as outras rotas de debug
+app.get('/api/debug/fix-dev-role', async (req, res) => {
+  try {
+    // Corrigir role do DEV para 'desenvolvedor'
+    await db.execute(
+      'UPDATE users SET role = ? WHERE email = ?',
+      ['desenvolvedor', 'dev@dockflow.com']
+    );
+    
+    // Verificar resultado
+    const [user] = await db.execute(
+      'SELECT id, email, name, role FROM users WHERE email = ?',
+      ['dev@dockflow.com']
+    );
+    
+    res.json({
+      success: true,
+      message: 'Role corrigida!',
+      user: user[0]
+    });
+  } catch (error) {
+    res.json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 // 🚀 Inicializar tudo
 initializeDatabaseWithRetry();
 loadWorkingRoutes();
