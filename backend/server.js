@@ -591,6 +591,119 @@ app.post('/api/debug/test-login', async (req, res) => {
   }
 });
 
+// Adicione esta rota temporária no server.js para corrigir a estrutura
+
+app.post('/api/debug/fix-database', async (req, res) => {
+  try {
+    console.log('🔧 Corrigindo estrutura do banco de dados...');
+    
+    // 1. ATUALIZAR ENUM de roles para incluir 'desenvolvedor'
+    console.log('📝 Atualizando ENUM de roles...');
+    await db.execute(`
+      ALTER TABLE users 
+      MODIFY role ENUM('operador', 'analista', 'admin', 'desenvolvedor') 
+      DEFAULT 'operador'
+    `);
+    console.log('✅ ENUM de roles atualizado');
+    
+    // 2. CRIAR USUÁRIOS PADRÃO COM ROLES CORRETAS
+    console.log('👥 Criando usuários padrão...');
+    const bcrypt = require('bcryptjs');
+    
+    const usersToCreate = [
+      {
+        email: 'dev@dockflow.com',
+        password: 'DockFlow2025!',
+        name: 'Desenvolvedor',
+        role: 'desenvolvedor'
+      },
+      {
+        email: 'analista@dockflow.com',
+        password: 'Analista2025!',
+        name: 'Analista',
+        role: 'analista'
+      },
+      {
+        email: 'operador@dockflow.com',
+        password: 'Operador2025!',
+        name: 'Operador',
+        role: 'operador'
+      }
+    ];
+    
+    const createdUsers = [];
+    
+    for (const user of usersToCreate) {
+      // Verificar se já existe
+      const [existing] = await db.execute(
+        'SELECT id FROM users WHERE email = ?',
+        [user.email]
+      );
+      
+      if (existing.length === 0) {
+        const hashedPassword = await bcrypt.hash(user.password, 12);
+        
+        const [result] = await db.execute(
+          'INSERT INTO users (email, password, name, role, status) VALUES (?, ?, ?, ?, ?)',
+          [user.email, hashedPassword, user.name, user.role, 'active']
+        );
+        
+        createdUsers.push({
+          id: result.insertId,
+          email: user.email,
+          name: user.name,
+          role: user.role
+        });
+        
+        console.log(`✅ Usuário criado: ${user.email} (${user.role})`);
+      } else {
+        console.log(`👤 Usuário já existe: ${user.email}`);
+      }
+    }
+    
+    // 3. VERIFICAR SE ADMIN EXISTENTE TEM SENHA HASHADA
+    console.log('🔐 Verificando senhas existentes...');
+    const [adminUser] = await db.execute(
+      'SELECT id, email, password FROM users WHERE email = ?',
+      ['admin@dockflow.com']
+    );
+    
+    if (adminUser.length > 0) {
+      const isHashed = adminUser[0].password.startsWith('$2');
+      if (!isHashed) {
+        console.log('🔧 Atualizando senha do admin para hash...');
+        const hashedAdminPassword = await bcrypt.hash('Admin2025!', 12);
+        await db.execute(
+          'UPDATE users SET password = ? WHERE email = ?',
+          [hashedAdminPassword, 'admin@dockflow.com']
+        );
+        console.log('✅ Senha do admin atualizada');
+      }
+    }
+    
+    // 4. VERIFICAR RESULTADO FINAL
+    const [allUsers] = await db.execute(
+      'SELECT id, email, name, role, status FROM users ORDER BY id'
+    );
+    
+    res.json({
+      success: true,
+      message: 'Banco de dados corrigido com sucesso!',
+      created_users: createdUsers,
+      all_users: allUsers,
+      total_users: allUsers.length
+    });
+    
+  } catch (error) {
+    console.error('❌ Erro ao corrigir banco:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      stack: error.stack
+    });
+  }
+});
+
 // 🚀 Inicializar tudo
 initializeDatabaseWithRetry();
 loadWorkingRoutes();
