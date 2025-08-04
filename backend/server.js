@@ -12,6 +12,8 @@ const { createTables } = require('./database/migrations');
 const { migrateRoutesTable } = require('./database/routesMigration');
 const { runSeeds } = require('./database/seeds');
 const { login } = require('./controllers/authController');
+const { router: authRoutes } = require('./routes/authRoutes');
+const adminRoutes = require('./routes/adminRoutes');
 
 // 🗄️ Importar database unificado (promises)
 const { db, testConnection, initializeDatabase } = require('./database');
@@ -33,6 +35,8 @@ applyCorsConfig(app);
 app.use(compression()); // Compressão GZIP
 app.use(bodyParser.json({ limit: '10mb' })); // Limite de payload
 app.use(bodyParser.urlencoded({ extended: true, limit: '10mb' }));
+app.use('/api/auth', authRoutes);
+app.use('/api/admin', adminRoutes);
 
 // 📁 Servir arquivos estáticos do frontend
 app.use(express.static('public'));

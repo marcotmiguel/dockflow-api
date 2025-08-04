@@ -1,285 +1,594 @@
+// js/auth.js - Sistema de Autenticação Frontend DockFlow
+// VERSÃO CORRIGIDA com suporte a roles e JWT
+
+/**
+ * Sistema de Autenticação Frontend
+ * Compatível com o novo sistema de roles (operador, analista, admin, desenvolvedor)
+ * Suporte a JWT e middleware de autenticação
+ */
+
 // Configuração da API
-const API_URL = 'https://dockflow-api-production.up.railway.app';
-
-// Função para obter o token armazenado
-function getAuthToken() {
-  return localStorage.getItem('authToken');
-}
-
-// Função para configurar headers com autenticação
-function getAuthHeaders() {
-  const token = getAuthToken();
-  const headers = {
-    'Content-Type': 'application/json'
-  };
-  
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
+const API_CONFIG = {
+  BASE_URL: window.location.origin,
+  ENDPOINTS: {
+    LOGIN: '/api/auth/login',
+    LOGOUT: '/api/auth/logout',
+    ME: '/api/auth/me',
+    CHECK_DEVELOPER: '/api/auth/check-developer',
+    CHANGE_PASSWORD: '/api/auth/change-password'
   }
-  
-  return headers;
-}
+};
 
-// Função para fazer requisições autenticadas
-async function apiRequest(endpoint, options = {}) {
-  const url = `${API_URL}${endpoint}`;
-  
-  const config = {
-    ...options,
-    headers: {
-      ...getAuthHeaders(),
-      ...options.headers
-    }
-  };
-  
-  console.log(`🌐 API Request: ${config.method || 'GET'} ${url}`);
-  
-  try {
-    const response = await fetch(url, config);
+// Estado da autenticação
+let authState = {
+  token: null,
+  user: null,
+  isAuthenticated: false,
+  role: null,
+  permissions: []
+};
+
+// Classe principal de autenticação
+class DockFlowAuth {
+  constructor() {
+    this.init();
+  }
+
+  // Inicializar sistema de autenticação
+  init() {
+    console.log('🔐 Inicializando sistema de autenticação...');
     
-    if (response.status === 401) {
-      console.log('❌ Token expirado ou inválido, redirecionando para login...');
-      logout();
-      return null;
+    // Carregar token do localStorage
+    this.loadAuthFromStorage();
+    
+    // Configurar interceptadores de requisição
+    this.setupRequestInterceptors();
+    
+    // Verificar autenticação na inicialização
+    if (authState.token) {
+      this.validateToken();
     }
     
-    return response;
-  } catch (error) {
-    console.error('❌ Erro na requisição:', error);
-    throw error;
+    console.log('✅ Sistema de autenticação inicializado');
   }
-}
 
-// Função de login
-async function login(email, password) {
-  console.log('🔐 Tentando fazer login...');
-  
-  try {
-    const response = await fetch(`${API_URL}/api/auth/login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ email, password })
-    });
-
-    const data = await response.json();
-
-    if (response.ok && data.token) {
-      console.log('✅ Login realizado com sucesso');
+  // Carregar autenticação do localStorage
+  loadAuthFromStorage() {
+    try {
+      const token = localStorage.getItem('dockflow_token');
+      const userData = localStorage.getItem('dockflow_user');
       
-      // Armazenar token
-      localStorage.setItem('authToken', data.token);
-      localStorage.setItem('userData', JSON.stringify({
-        id: data.user.id,
-        username: data.user.username,
-        email: data.user.email
-      }));
-      
-      return { success: true, data };
-    } else {
-      console.log('❌ Falha no login:', data.message);
-      return { success: false, message: data.message || 'Erro no login' };
-    }
-  } catch (error) {
-    console.error('❌ Erro no login:', error);
-    return { success: false, message: 'Erro de conexão' };
-  }
-}
-
-// Função de logout
-function logout() {
-  console.log('🚪 Fazendo logout...');
-  localStorage.removeItem('authToken');
-  localStorage.removeItem('userData');
-  window.location.href = '/';
-}
-
-// Verificar se está logado
-function isLoggedIn() {
-  return !!getAuthToken();
-}
-
-// Função para carregar dados do dashboard
-async function loadDashboardData() {
-  console.log('📊 Carregando dados do dashboard...');
-  
-  try {
-    // Carregar docas
-    const docksResponse = await apiRequest('/api/docks');
-    if (docksResponse && docksResponse.ok) {
-      const docksData = await docksResponse.json();
-      updateDocksDisplay(docksData.data || []);
-    } else {
-      console.error('❌ Erro ao carregar docas');
-      updateDocksDisplay([]);
-    }
-
-    // Carregar carregamentos de hoje
-    const loadingsResponse = await apiRequest('/api/loadings/today');
-    if (loadingsResponse && loadingsResponse.ok) {
-      const loadingsData = await loadingsResponse.json();
-      updateLoadingsDisplay(loadingsData.data || []);
-    } else {
-      console.error('❌ Erro ao carregar carregamentos de hoje');
-      updateLoadingsDisplay([]);
-    }
-    
-  } catch (error) {
-    console.error('❌ Erro ao carregar dados do dashboard:', error);
-  }
-}
-
-// Atualizar exibição das docas
-function updateDocksDisplay(docks) {
-  console.log(`📋 Atualizando exibição de ${docks.length} docas`);
-  
-  const docksContainer = document.querySelector('#docks-list');
-  if (!docksContainer) return;
-  
-  if (docks.length === 0) {
-    docksContainer.innerHTML = '<p class="text-gray-500">Nenhuma doca encontrada</p>';
-    return;
-  }
-  
-  docksContainer.innerHTML = docks.map(dock => `
-    <div class="bg-white p-4 rounded-lg shadow border-l-4 ${dock.status === 'available' ? 'border-green-500' : 'border-red-500'}">
-      <div class="flex justify-between items-center">
-        <h3 class="font-semibold text-gray-800">${dock.name}</h3>
-        <span class="px-2 py-1 rounded text-sm ${dock.status === 'available' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
-          ${dock.status === 'available' ? 'Disponível' : 'Ocupada'}
-        </span>
-      </div>
-      <p class="text-sm text-gray-600 mt-1">ID: ${dock.id}</p>
-    </div>
-  `).join('');
-}
-
-// Atualizar exibição dos carregamentos
-function updateLoadingsDisplay(loadings) {
-  console.log(`📋 Atualizando exibição de ${loadings.length} carregamentos`);
-  
-  const loadingsContainer = document.querySelector('#loadings-list');
-  if (!loadingsContainer) return;
-  
-  if (loadings.length === 0) {
-    loadingsContainer.innerHTML = '<p class="text-gray-500">Nenhum carregamento encontrado para hoje</p>';
-    return;
-  }
-  
-  loadingsContainer.innerHTML = loadings.map(loading => `
-    <div class="bg-white p-4 rounded-lg shadow">
-      <div class="flex justify-between items-start">
-        <div>
-          <h3 class="font-semibold text-gray-800">${loading.truck_plate}</h3>
-          <p class="text-sm text-gray-600">Motorista: ${loading.driver_name}</p>
-          <p class="text-sm text-gray-600">Tipo: ${loading.cargo_type}</p>
-          ${loading.weight ? `<p class="text-sm text-gray-600">Peso: ${loading.weight}kg</p>` : ''}
-          ${loading.dock_name ? `<p class="text-sm text-gray-600">Doca: ${loading.dock_name}</p>` : ''}
-        </div>
-        <span class="px-2 py-1 rounded text-sm bg-blue-100 text-blue-800">
-          ${getStatusText(loading.status)}
-        </span>
-      </div>
-      <div class="mt-2 text-xs text-gray-500">
-        ${loading.origin ? `De: ${loading.origin}` : ''} 
-        ${loading.destination ? `Para: ${loading.destination}` : ''}
-      </div>
-    </div>
-  `).join('');
-}
-
-// Converter status para texto
-function getStatusText(status) {
-  const statusMap = {
-    'scheduled': 'Agendado',
-    'loading': 'Carregando',
-    'completed': 'Concluído',
-    'cancelled': 'Cancelado'
-  };
-  return statusMap[status] || status;
-}
-
-// Event listeners quando a página carrega
-document.addEventListener('DOMContentLoaded', function() {
-  console.log('📄 DOM carregado');
-  
-  // Se estiver na página de login
-  const loginForm = document.getElementById('loginForm');
-  if (loginForm) {
-    console.log('🔐 Página de login detectada');
-    
-    // Verificar se já está logado
-    if (isLoggedIn()) {
-      console.log('✅ Usuário já logado, redirecionando...');
-      window.location.href = '/dashboard.html';
-      return;
-    }
-    
-    // Configurar formulário de login
-    loginForm.addEventListener('submit', async function(e) {
-      e.preventDefault();
-      
-      const email = document.getElementById('email').value;
-      const password = document.getElementById('password').value;
-      const loginButton = document.getElementById('loginButton');
-      const errorMessage = document.getElementById('errorMessage');
-      
-      // Desabilitar botão e mostrar loading
-      loginButton.disabled = true;
-      loginButton.textContent = 'Entrando...';
-      errorMessage.classList.add('hidden');
-      
-      try {
-        const result = await login(email, password);
+      if (token && userData) {
+        authState.token = token;
+        authState.user = JSON.parse(userData);
+        authState.isAuthenticated = true;
+        authState.role = authState.user.role;
+        authState.permissions = authState.user.permissions || [];
         
-        if (result.success) {
-          window.location.href = '/dashboard.html';
-        } else {
-          errorMessage.textContent = result.message;
-          errorMessage.classList.remove('hidden');
+        console.log(`✅ Autenticação carregada: ${authState.user.name} (${authState.role})`);
+      }
+    } catch (error) {
+      console.error('❌ Erro ao carregar autenticação:', error);
+      this.clearAuth();
+    }
+  }
+
+  // Salvar autenticação no localStorage
+  saveAuthToStorage(token, user) {
+    try {
+      localStorage.setItem('dockflow_token', token);
+      localStorage.setItem('dockflow_user', JSON.stringify(user));
+      
+      authState.token = token;
+      authState.user = user;
+      authState.isAuthenticated = true;
+      authState.role = user.role;
+      authState.permissions = user.permissions || [];
+      
+      console.log(`✅ Autenticação salva: ${user.name} (${user.role})`);
+    } catch (error) {
+      console.error('❌ Erro ao salvar autenticação:', error);
+    }
+  }
+
+  // Limpar autenticação
+  clearAuth() {
+    localStorage.removeItem('dockflow_token');
+    localStorage.removeItem('dockflow_user');
+    
+    authState.token = null;
+    authState.user = null;
+    authState.isAuthenticated = false;
+    authState.role = null;
+    authState.permissions = [];
+    
+    console.log('🧹 Autenticação limpa');
+  }
+
+  // Fazer login
+  async login(email, password) {
+    console.log(`🔐 Tentando login: ${email}`);
+    
+    try {
+      const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.LOGIN}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ email, password })
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        console.log('✅ Login realizado com sucesso');
+        
+        // Salvar dados de autenticação
+        this.saveAuthToStorage(data.data.token, data.data.user);
+        
+        // Disparar evento de login
+        this.dispatchAuthEvent('login', authState.user);
+        
+        return { 
+          success: true, 
+          user: authState.user,
+          role: authState.role,
+          permissions: authState.permissions
+        };
+        
+      } else {
+        console.log('❌ Falha no login:', data.message);
+        return { 
+          success: false, 
+          message: data.message || 'Credenciais inválidas' 
+        };
+      }
+      
+    } catch (error) {
+      console.error('❌ Erro no login:', error);
+      return { 
+        success: false, 
+        message: 'Erro de conexão. Verifique sua internet.' 
+      };
+    }
+  }
+
+  // Fazer logout
+  async logout() {
+    console.log('🚪 Fazendo logout...');
+    
+    try {
+      // Tentar notificar o servidor (opcional)
+      if (authState.token) {
+        await this.fetchAuth(API_CONFIG.ENDPOINTS.LOGOUT, {
+          method: 'POST'
+        });
+      }
+    } catch (error) {
+      console.warn('⚠️ Erro ao notificar logout no servidor:', error);
+    }
+    
+    // Limpar dados locais
+    this.clearAuth();
+    
+    // Disparar evento de logout
+    this.dispatchAuthEvent('logout', null);
+    
+    // Redirecionar para login se não estiver lá
+    if (window.location.pathname !== '/' && !window.location.pathname.includes('login')) {
+      window.location.href = '/';
+    }
+  }
+
+  // Validar token atual
+  async validateToken() {
+    if (!authState.token) {
+      return false;
+    }
+
+    try {
+      const response = await this.fetchAuth(API_CONFIG.ENDPOINTS.ME);
+      
+      if (response && response.ok) {
+        const data = await response.json();
+        
+        if (data.success) {
+          // Atualizar dados do usuário
+          authState.user = data.data;
+          authState.role = data.data.role;
+          authState.permissions = data.data.permissions || [];
+          
+          localStorage.setItem('dockflow_user', JSON.stringify(authState.user));
+          
+          return true;
         }
-      } catch (error) {
-        errorMessage.textContent = 'Erro de conexão. Tente novamente.';
-        errorMessage.classList.remove('hidden');
-      } finally {
-        // Reabilitar botão
-        loginButton.disabled = false;
-        loginButton.textContent = 'Entrar';
+      }
+      
+      // Token inválido
+      this.clearAuth();
+      return false;
+      
+    } catch (error) {
+      console.error('❌ Erro ao validar token:', error);
+      this.clearAuth();
+      return false;
+    }
+  }
+
+  // Fazer requisições autenticadas
+  async fetchAuth(endpoint, options = {}) {
+    if (!authState.token) {
+      throw new Error('Token de autenticação não encontrado');
+    }
+
+    const url = endpoint.startsWith('http') ? endpoint : `${API_CONFIG.BASE_URL}${endpoint}`;
+    
+    const config = {
+      ...options,
+      headers: {
+        'Authorization': `Bearer ${authState.token}`,
+        'Content-Type': 'application/json',
+        ...options.headers
+      }
+    };
+
+    console.log(`🌐 API Request: ${config.method || 'GET'} ${url}`);
+
+    try {
+      const response = await fetch(url, config);
+
+      // Token expirado ou inválido
+      if (response.status === 401 || response.status === 403) {
+        console.log('❌ Token expirado ou acesso negado');
+        this.clearAuth();
+        this.dispatchAuthEvent('tokenExpired', null);
+        
+        // Redirecionar para login se não estiver lá
+        if (window.location.pathname !== '/' && !window.location.pathname.includes('login')) {
+          window.location.href = '/';
+        }
+        
+        throw new Error('Token expirado. Faça login novamente.');
+      }
+
+      return response;
+      
+    } catch (error) {
+      console.error('❌ Erro na requisição autenticada:', error);
+      throw error;
+    }
+  }
+
+  // Verificar se usuário está logado
+  isAuthenticated() {
+    return authState.isAuthenticated && authState.token && authState.user;
+  }
+
+  // Obter dados do usuário
+  getUser() {
+    return authState.user;
+  }
+
+  // Obter role do usuário
+  getRole() {
+    return authState.role;
+  }
+
+  // Obter permissões do usuário
+  getPermissions() {
+    return authState.permissions;
+  }
+
+  // Verificar se usuário tem permissão específica
+  hasPermission(permission) {
+    if (!authState.permissions) return false;
+    
+    // Desenvolvedor tem todas as permissões
+    if (authState.role === 'desenvolvedor' || authState.permissions.includes('*')) {
+      return true;
+    }
+    
+    return authState.permissions.includes(permission);
+  }
+
+  // Verificar se usuário tem role específica ou superior
+  hasRole(requiredRole) {
+    const roleHierarchy = {
+      'operator': 1,
+      'analyst': 2, 
+      'admin': 3,
+      'desenvolvedor': 4
+    };
+    
+    const userLevel = roleHierarchy[authState.role] || 0;
+    const requiredLevel = roleHierarchy[requiredRole] || 999;
+    
+    return userLevel >= requiredLevel;
+  }
+
+  // Verificar se é desenvolvedor
+  async isDeveloper() {
+    if (authState.role === 'desenvolvedor') {
+      return true;
+    }
+
+    try {
+      const response = await this.fetchAuth(API_CONFIG.ENDPOINTS.CHECK_DEVELOPER);
+      
+      if (response && response.ok) {
+        const data = await response.json();
+        return data.success && data.data.isDeveloper;
+      }
+      
+      return false;
+      
+    } catch (error) {
+      console.error('❌ Erro ao verificar role de desenvolvedor:', error);
+      return false;
+    }
+  }
+
+  // Alterar senha
+  async changePassword(currentPassword, newPassword) {
+    try {
+      const response = await this.fetchAuth(API_CONFIG.ENDPOINTS.CHANGE_PASSWORD, {
+        method: 'POST',
+        body: JSON.stringify({
+          currentPassword,
+          newPassword
+        })
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        console.log('✅ Senha alterada com sucesso');
+        return { success: true, message: data.message };
+      } else {
+        return { success: false, message: data.message || 'Erro ao alterar senha' };
+      }
+      
+    } catch (error) {
+      console.error('❌ Erro ao alterar senha:', error);
+      return { success: false, message: 'Erro de conexão' };
+    }
+  }
+
+  // Configurar interceptadores de requisição
+  setupRequestInterceptors() {
+    // Interceptar erros globais de autenticação
+    window.addEventListener('unhandledrejection', (event) => {
+      if (event.reason && event.reason.message && event.reason.message.includes('Token expirado')) {
+        console.log('🔄 Token expirado detectado globalmente');
+        // Não mostrar erro para o usuário, já foi tratado
+        event.preventDefault();
       }
     });
   }
-  
-  // Se estiver no dashboard
-  if (window.location.pathname.includes('dashboard') || window.location.pathname === '/') {
-    console.log('📊 Dashboard detectado');
+
+  // Disparar eventos de autenticação
+  dispatchAuthEvent(type, data) {
+    const event = new CustomEvent(`dockflow:${type}`, {
+      detail: data
+    });
     
-    // Verificar se está logado
-    if (!isLoggedIn()) {
-      console.log('❌ Usuário não logado, redirecionando...');
+    window.dispatchEvent(event);
+    console.log(`📡 Evento disparado: dockflow:${type}`);
+  }
+
+  // Proteger página (usar em páginas que precisam de autenticação)
+  requireAuth(requiredRole = null) {
+    if (!this.isAuthenticated()) {
+      console.log('❌ Usuário não autenticado, redirecionando...');
       window.location.href = '/';
+      return false;
+    }
+
+    if (requiredRole && !this.hasRole(requiredRole)) {
+      console.log(`❌ Usuário não tem role ${requiredRole}, acesso negado`);
+      this.showAlert('Acesso negado. Você não tem permissão para acessar esta página.', 'danger');
+      return false;
+    }
+
+    return true;
+  }
+
+  // Mostrar alerta (utility)
+  showAlert(message, type = 'info') {
+    // Tentar usar o sistema de alertas se disponível
+    if (window.Utils && window.Utils.showAlert) {
+      window.Utils.showAlert(message, type);
       return;
     }
-    
-    // Configurar botão de logout
-    const logoutButton = document.getElementById('logoutButton');
-    if (logoutButton) {
-      logoutButton.addEventListener('click', logout);
+
+    // Fallback simples
+    const alertClass = {
+      'success': 'alert-success',
+      'danger': 'alert-danger', 
+      'warning': 'alert-warning',
+      'info': 'alert-info'
+    }[type] || 'alert-info';
+
+    const alertHTML = `
+      <div class="alert ${alertClass} alert-dismissible fade show" role="alert">
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    `;
+
+    // Procurar container de alertas
+    let container = document.getElementById('alertContainer') || 
+                   document.getElementById('alert-container') ||
+                   document.querySelector('.alert-container');
+
+    if (!container) {
+      // Criar container se não existir
+      container = document.createElement('div');
+      container.id = 'alertContainer';
+      container.className = 'position-fixed';
+      container.style.cssText = 'top: 20px; right: 20px; z-index: 9999;';
+      document.body.appendChild(container);
     }
-    
-    // Carregar dados do dashboard
-    loadDashboardData();
-    
-    // Recarregar dados a cada 30 segundos
-    setInterval(loadDashboardData, 30000);
+
+    container.insertAdjacentHTML('beforeend', alertHTML);
+
+    // Auto-remover após 5 segundos
+    setTimeout(() => {
+      const alert = container.querySelector('.alert:last-child');
+      if (alert) {
+        alert.remove();
+      }
+    }, 5000);
+  }
+}
+
+// Instanciar sistema de autenticação
+const Auth = new DockFlowAuth();
+
+// Event listeners globais
+document.addEventListener('DOMContentLoaded', function() {
+  console.log('📄 DOM carregado - configurando autenticação');
+
+  // Configurar formulário de login se existir
+  const loginForm = document.getElementById('loginForm');
+  if (loginForm) {
+    setupLoginForm(loginForm);
+  }
+
+  // Configurar botões de logout
+  document.querySelectorAll('[data-action="logout"], #logoutButton, #logout-button').forEach(button => {
+    button.addEventListener('click', (e) => {
+      e.preventDefault();
+      Auth.logout();
+    });
+  });
+
+  // Verificar se página requer autenticação
+  const pageAuth = document.querySelector('[data-require-auth]');
+  if (pageAuth) {
+    const requiredRole = pageAuth.getAttribute('data-require-role');
+    Auth.requireAuth(requiredRole);
   }
 });
 
-// Exportar funções globalmente se necessário
-window.DockFlowAuth = {
-  login,
-  logout,
-  isLoggedIn,
-  loadDashboardData,
-  apiRequest
-};
+// Configurar formulário de login
+function setupLoginForm(form) {
+  console.log('🔐 Configurando formulário de login');
+
+  form.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const email = form.querySelector('#email, [name="email"]')?.value;
+    const password = form.querySelector('#password, [name="password"]')?.value;
+    const submitButton = form.querySelector('[type="submit"], .login-btn');
+    const errorContainer = form.querySelector('.error-message, #errorMessage');
+    
+    if (!email || !password) {
+      showFormError(errorContainer, 'Preencha email e senha');
+      return;
+    }
+
+    // Estado de loading
+    if (submitButton) {
+      submitButton.disabled = true;
+      const originalText = submitButton.textContent;
+      submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Entrando...';
+      
+      // Restaurar botão após login
+      const restoreButton = () => {
+        submitButton.disabled = false;
+        submitButton.textContent = originalText;
+      };
+
+      try {
+        const result = await Auth.login(email, password);
+        
+        if (result.success) {
+          // Sucesso - redirecionar baseado na role
+          showFormSuccess(errorContainer, 'Login realizado com sucesso!');
+          
+          setTimeout(() => {
+            const redirectUrl = getRedirectUrl(result.role);
+            window.location.href = redirectUrl;
+          }, 1000);
+          
+        } else {
+          showFormError(errorContainer, result.message);
+          restoreButton();
+        }
+        
+      } catch (error) {
+        showFormError(errorContainer, 'Erro de conexão. Tente novamente.');
+        restoreButton();
+      }
+    }
+  });
+}
+
+// Determinar URL de redirecionamento baseado na role
+function getRedirectUrl(role) {
+  // Verificar se há URL de redirecionamento específica
+  const urlParams = new URLSearchParams(window.location.search);
+  const redirectTo = urlParams.get('redirect');
+  
+  if (redirectTo) {
+    return decodeURIComponent(redirectTo);
+  }
+
+  // Redirecionamento padrão por role
+  switch (role) {
+    case 'desenvolvedor':
+      return '/pages/admin.html';
+    case 'admin':
+      return '/pages/dashboard.html';
+    default:
+      return '/pages/dashboard.html';
+  }
+}
+
+// Mostrar erro no formulário
+function showFormError(container, message) {
+  if (container) {
+    container.textContent = message;
+    container.className = 'alert alert-danger';
+    container.style.display = 'block';
+  } else {
+    Auth.showAlert(message, 'danger');
+  }
+}
+
+// Mostrar sucesso no formulário
+function showFormSuccess(container, message) {
+  if (container) {
+    container.textContent = message;
+    container.className = 'alert alert-success';
+    container.style.display = 'block';
+  } else {
+    Auth.showAlert(message, 'success');
+  }
+}
+
+// Eventos de autenticação
+window.addEventListener('dockflow:login', (event) => {
+  console.log('✅ Usuário logado:', event.detail);
+});
+
+window.addEventListener('dockflow:logout', () => {
+  console.log('🚪 Usuário deslogado');
+});
+
+window.addEventListener('dockflow:tokenExpired', () => {
+  console.log('⏰ Token expirado');
+  Auth.showAlert('Sua sessão expirou. Faça login novamente.', 'warning');
+});
+
+// Exportar para uso global
+window.Auth = Auth;
+window.DockFlowAuth = DockFlowAuth;
+
+// Para compatibilidade com código existente
+window.getAuthToken = () => Auth.authState?.token;
+window.isLoggedIn = () => Auth.isAuthenticated();
+window.apiRequest = (endpoint, options) => Auth.fetchAuth(endpoint, options);
+
+console.log('✅ Sistema de autenticação DockFlow carregado');
