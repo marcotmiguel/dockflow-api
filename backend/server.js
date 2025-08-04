@@ -776,6 +776,61 @@ app.get('/api/debug/fix-database', async (req, res) => {
   }
 });
 
+// Adicione esta rota temporária para verificar o usuário DEV
+
+app.get('/api/debug/verify-dev', async (req, res) => {
+  try {
+    console.log('🔍 Verificando usuário DEV...');
+    
+    // Buscar especificamente o usuário dev
+    const [devUser] = await db.execute(
+      'SELECT id, email, name, role, status, created_at FROM users WHERE email = ?',
+      ['dev@dockflow.com']
+    );
+    
+    // Buscar todos os usuários para comparação
+    const [allUsers] = await db.execute(
+      'SELECT id, email, name, role, status, created_at FROM users ORDER BY id'
+    );
+    
+    // Verificar se está logado como dev
+    const authHeader = req.headers.authorization;
+    let currentUser = null;
+    
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      try {
+        const token = authHeader.replace('Bearer ', '');
+        const jwt = require('jsonwebtoken');
+        const JWT_SECRET = process.env.JWT_SECRET || 'dockflow_super_secret_key_2025';
+        const decoded = jwt.verify(token, JWT_SECRET);
+        currentUser = decoded;
+      } catch (error) {
+        console.log('Token inválido ou não fornecido');
+      }
+    }
+    
+    res.json({
+      success: true,
+      dev_user_found: devUser.length > 0,
+      dev_user: devUser.length > 0 ? devUser[0] : null,
+      all_users: allUsers,
+      total_users: allUsers.length,
+      current_logged_user: currentUser,
+      search_info: {
+        searched_email: 'dev@dockflow.com',
+        found: devUser.length > 0
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Erro na verificação:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 // 🚀 Inicializar tudo
 initializeDatabaseWithRetry();
 loadWorkingRoutes();
