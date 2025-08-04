@@ -2,7 +2,8 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
-const { db } = require('../config/database');
+// ✅ CAMINHO CORRIGIDO para a estrutura atual
+const { db } = require('../database'); // Era '../config/database'
 const router = express.Router();
 
 // JWT Secret
