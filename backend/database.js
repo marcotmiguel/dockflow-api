@@ -122,6 +122,8 @@ const initializeDatabase = async () => {
 
 // Criar usuários padrão do sistema
 const createDefaultUsers = async () => {
+    console.log('👥 Criando usuários padrão...');
+    
     const defaultUsers = [
         {
             email: 'dev@dockflow.com',
@@ -158,23 +160,51 @@ const createDefaultUsers = async () => {
             );
 
             if (exists.length === 0) {
-                // Hash da senha
+                console.log(`📝 Criando usuário: ${user.email}`);
+                
+                // ✅ SEMPRE FAZER HASH DA SENHA
                 const hashedPassword = await bcrypt.hash(user.password, 12);
+                console.log(`🔐 Senha hashada para ${user.email}: ${hashedPassword.substring(0, 20)}...`);
                 
                 // Criar usuário
-                await db.execute(
-                    'INSERT INTO users (email, password, name, role) VALUES (?, ?, ?, ?)',
-                    [user.email, hashedPassword, user.name, user.role]
+                const [result] = await db.execute(
+                    'INSERT INTO users (email, password, name, role, status) VALUES (?, ?, ?, ?, ?)',
+                    [user.email, hashedPassword, user.name, user.role, 'active']
                 );
                 
-                console.log(`👤 Usuário criado: ${user.email} (${user.role})`);
+                console.log(`✅ Usuário criado: ${user.email} (ID: ${result.insertId}, Role: ${user.role})`);
             } else {
                 console.log(`👤 Usuário já existe: ${user.email}`);
+                
+                // ✅ VERIFICAR SE A SENHA ESTÁ HASHADA
+                const [userCheck] = await db.execute(
+                    'SELECT password FROM users WHERE email = ?',
+                    [user.email]
+                );
+                
+                const currentPassword = userCheck[0].password;
+                const isHashed = currentPassword.startsWith('$2');
+                
+                if (!isHashed) {
+                    console.log(`🔧 Atualizando senha não-hashada para: ${user.email}`);
+                    const hashedPassword = await bcrypt.hash(user.password, 12);
+                    
+                    await db.execute(
+                        'UPDATE users SET password = ? WHERE email = ?',
+                        [hashedPassword, user.email]
+                    );
+                    
+                    console.log(`✅ Senha atualizada e hashada: ${user.email}`);
+                }
             }
         } catch (error) {
-            console.error(`❌ Erro ao criar usuário ${user.email}:`, error.message);
+            console.error(`❌ Erro ao processar usuário ${user.email}:`, error.message);
         }
     }
+    
+    // ✅ VERIFICAR TOTAL DE USUÁRIOS CRIADOS
+    const [totalUsers] = await db.execute('SELECT COUNT(*) as count FROM users');
+    console.log(`📊 Total de usuários no banco: ${totalUsers[0].count}`);
 };
 
 // Inserir dados de exemplo

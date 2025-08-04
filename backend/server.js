@@ -483,6 +483,114 @@ const startServer = () => {
   process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 };
 
+// Adicione esta rota temporária no seu server.js para debug
+// APENAS PARA DEBUG - REMOVA EM PRODUÇÃO
+
+app.get('/api/debug/users', async (req, res) => {
+  try {
+    console.log('🔍 DEBUG: Verificando usuários no banco...');
+    
+    // Verificar se tabela users existe
+    const [tables] = await db.execute("SHOW TABLES LIKE 'users'");
+    
+    if (tables.length === 0) {
+      return res.json({
+        debug: true,
+        error: 'Tabela users não existe',
+        solution: 'Execute initializeDatabase()'
+      });
+    }
+    
+    // Buscar todos os usuários (SEM SENHAS para segurança)
+    const [users] = await db.execute(
+      'SELECT id, email, name, role, status, created_at FROM users'
+    );
+    
+    // Verificar estrutura da tabela
+    const [columns] = await db.execute('DESCRIBE users');
+    
+    res.json({
+      debug: true,
+      message: 'Debug dos usuários',
+      users_count: users.length,
+      users: users,
+      table_structure: columns,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Erro no debug:', error);
+    res.status(500).json({
+      debug: true,
+      error: error.message,
+      stack: error.stack
+    });
+  }
+});
+
+// Rota para testar login manual (APENAS DEBUG)
+app.post('/api/debug/test-login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    
+    console.log(`🔍 DEBUG: Testando login para ${email}`);
+    
+    // Buscar usuário
+    const [users] = await db.execute(
+      'SELECT id, email, password, name, role, status FROM users WHERE email = ?',
+      [email]
+    );
+    
+    if (users.length === 0) {
+      return res.json({
+        debug: true,
+        error: 'Usuário não encontrado',
+        email_searched: email,
+        suggestion: 'Verifique se o email está correto ou se os usuários foram criados'
+      });
+    }
+    
+    const user = users[0];
+    
+    // Verificar se senha é hash ou texto plano
+    const isHashedPassword = user.password.startsWith('$2');
+    
+    let isValidPassword = false;
+    
+    if (isHashedPassword) {
+      // Senha hashada - usar bcrypt
+      const bcrypt = require('bcryptjs');
+      isValidPassword = await bcrypt.compare(password, user.password);
+    } else {
+      // Senha em texto plano (problema!)
+      isValidPassword = password === user.password;
+    }
+    
+    res.json({
+      debug: true,
+      user_found: true,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        status: user.status
+      },
+      password_is_hashed: isHashedPassword,
+      password_valid: isValidPassword,
+      password_length: user.password.length,
+      password_prefix: user.password.substring(0, 10) + '...'
+    });
+    
+  } catch (error) {
+    console.error('❌ Erro no teste de login:', error);
+    res.status(500).json({
+      debug: true,
+      error: error.message
+    });
+  }
+});
+
 // 🚀 Inicializar tudo
 initializeDatabaseWithRetry();
 loadWorkingRoutes();
