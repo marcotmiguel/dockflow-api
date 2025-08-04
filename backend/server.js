@@ -704,6 +704,78 @@ app.post('/api/debug/fix-database', async (req, res) => {
   }
 });
 
+// ROTA DE CORREÇÃO DO BANCO (TEMPORÁRIA)
+app.get('/api/debug/fix-database', async (req, res) => {
+  try {
+    console.log('🔧 Corrigindo estrutura do banco de dados...');
+    
+    // 1. ATUALIZAR ENUM de roles
+    await db.execute(`
+      ALTER TABLE users 
+      MODIFY role ENUM('operador', 'analista', 'admin', 'desenvolvedor') 
+      DEFAULT 'operador'
+    `);
+    
+    // 2. CRIAR USUÁRIOS PADRÃO
+    const bcrypt = require('bcryptjs');
+    
+    const usersToCreate = [
+      {
+        email: 'dev@dockflow.com',
+        password: 'DockFlow2025!',
+        name: 'Desenvolvedor',
+        role: 'desenvolvedor'
+      }
+    ];
+    
+    const createdUsers = [];
+    
+    for (const user of usersToCreate) {
+      const [existing] = await db.execute(
+        'SELECT id FROM users WHERE email = ?',
+        [user.email]
+      );
+      
+      if (existing.length === 0) {
+        const hashedPassword = await bcrypt.hash(user.password, 12);
+        
+        const [result] = await db.execute(
+          'INSERT INTO users (email, password, name, role, status) VALUES (?, ?, ?, ?, ?)',
+          [user.email, hashedPassword, user.name, user.role, 'active']
+        );
+        
+        createdUsers.push({
+          id: result.insertId,
+          email: user.email,
+          role: user.role
+        });
+      }
+    }
+    
+    // 3. VERIFICAR RESULTADO
+    const [allUsers] = await db.execute(
+      'SELECT id, email, name, role, status FROM users ORDER BY id'
+    );
+    
+    res.json({
+      success: true,
+      message: 'Banco corrigido!',
+      created_users: createdUsers,
+      all_users: allUsers,
+      login_info: {
+        email: 'dev@dockflow.com',
+        password: 'DockFlow2025!'
+      }
+    });
+    
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 // 🚀 Inicializar tudo
 initializeDatabaseWithRetry();
 loadWorkingRoutes();
