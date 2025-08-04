@@ -339,8 +339,10 @@ router.authMiddleware = authMiddleware;
 router.requireRole = requireRole;
 router.requirePermission = requirePermission;
 
-// ✅ EXPORTAR TAMBÉM INDIVIDUALMENTE para facilitar import
-module.exports = router;
-module.exports.authMiddleware = authMiddleware;
-module.exports.requireRole = requireRole;
-module.exports.requirePermission = requirePermission;
+// ✅ EXPORTAR COMPATÍVEL COM SEU SERVER.JS
+module.exports = {
+  router,
+  authMiddleware,
+  requireRole,
+  requirePermission
+};

@@ -1,28 +1,19 @@
-// routes/adminRoutes.js - Import Corrigido
+// routes/adminRoutes.js - Compatível com sua estrutura
 const express = require('express');
 const { db } = require('../database');
 const router = express.Router();
 
-// ✅ IMPORT CORRETO do authRoutes e seus middlewares
-const authRoutes = require('./authRoutes');
-const { authMiddleware, requireRole, requirePermission } = authRoutes;
-
-// OU se preferir importar individualmente:
-// const authMiddleware = authRoutes.authMiddleware;
-// const requireRole = authRoutes.requireRole;
-// const requirePermission = authRoutes.requirePermission;
+// ✅ IMPORT COMPATÍVEL com a estrutura do seu server
+const { authMiddleware, requireRole, requirePermission } = require('./authRoutes');
 
 console.log('🔧 AdminRoutes carregado');
 
-// Verificar se middleware foi importado corretamente
+// Verificar se middlewares foram importados
 if (!authMiddleware) {
-    console.error('❌ authMiddleware não foi importado corretamente!');
-}
-if (!requireRole) {
-    console.error('❌ requireRole não foi importado corretamente!');
+    console.error('❌ authMiddleware não foi importado!');
 }
 
-// Exemplo de rota protegida - CORRIGIDO
+// ✅ Rota para listar usuários (admin+)
 router.get('/users', authMiddleware, requireRole('admin'), async (req, res) => {
     try {
         const [users] = await db.execute(
@@ -42,16 +33,20 @@ router.get('/users', authMiddleware, requireRole('admin'), async (req, res) => {
     }
 });
 
-// Rota de reset do sistema (desenvolvedor apenas)
+// ✅ Rota de reset do sistema (desenvolvedor apenas)
 router.post('/reset-system', authMiddleware, requireRole('desenvolvedor'), async (req, res) => {
     try {
         console.log('🔄 Iniciando reset do sistema...');
         
-        // Truncar tabelas
+        // Desabilitar foreign key checks
         await db.execute('SET FOREIGN_KEY_CHECKS = 0');
+        
+        // Limpar tabelas principais
         await db.execute('TRUNCATE TABLE retornos');
         await db.execute('TRUNCATE TABLE carregamentos');
         await db.execute('TRUNCATE TABLE users');
+        
+        // Reabilitar foreign key checks
         await db.execute('SET FOREIGN_KEY_CHECKS = 1');
         
         // Recriar dados padrão
@@ -74,7 +69,7 @@ router.post('/reset-system', authMiddleware, requireRole('desenvolvedor'), async
     }
 });
 
-// Rota para criar usuário (admin)
+// ✅ Criar usuário (admin+)
 router.post('/create-user', authMiddleware, requireRole('admin'), async (req, res) => {
     try {
         const { email, password, name, role } = req.body;
@@ -131,7 +126,7 @@ router.post('/create-user', authMiddleware, requireRole('admin'), async (req, re
     }
 });
 
-// Rota para atualizar status do usuário
+// ✅ Atualizar status do usuário
 router.patch('/users/:id/status', authMiddleware, requireRole('admin'), async (req, res) => {
     try {
         const { id } = req.params;
@@ -163,7 +158,7 @@ router.patch('/users/:id/status', authMiddleware, requireRole('admin'), async (r
     }
 });
 
-// Rota para estatísticas do sistema
+// ✅ Estatísticas do sistema
 router.get('/stats', authMiddleware, requireRole('admin'), async (req, res) => {
     try {
         // Contar usuários por role
@@ -174,19 +169,31 @@ router.get('/stats', authMiddleware, requireRole('admin'), async (req, res) => {
             GROUP BY role
         `);
 
-        // Contar retornos por status
-        const [retornoStats] = await db.execute(`
-            SELECT status, COUNT(*) as count 
-            FROM retornos 
-            GROUP BY status
-        `);
+        // Contar retornos por status (se a tabela existir)
+        let retornoStats = [];
+        try {
+            const [retornos] = await db.execute(`
+                SELECT status, COUNT(*) as count 
+                FROM retornos 
+                GROUP BY status
+            `);
+            retornoStats = retornos;
+        } catch (error) {
+            console.warn('⚠️ Tabela retornos não existe ainda');
+        }
 
-        // Contar carregamentos por status
-        const [carregamentoStats] = await db.execute(`
-            SELECT status, COUNT(*) as count 
-            FROM carregamentos 
-            GROUP BY status
-        `);
+        // Contar carregamentos por status (se a tabela existir)
+        let carregamentoStats = [];
+        try {
+            const [carregamentos] = await db.execute(`
+                SELECT status, COUNT(*) as count 
+                FROM carregamentos 
+                GROUP BY status
+            `);
+            carregamentoStats = carregamentos;
+        } catch (error) {
+            console.warn('⚠️ Tabela carregamentos não existe ainda');
+        }
 
         res.json({
             success: true,
