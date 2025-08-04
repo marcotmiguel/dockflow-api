@@ -11,6 +11,72 @@
     </button>
   </div>
 
+  <!-- ✅ FERRAMENTAS DE DESENVOLVEDOR (NOVA SEÇÃO) -->
+  <div id="developer-tools" class="card border-danger mb-4" style="display: none;">
+    <div class="card-header bg-danger text-white">
+      <h5 class="mb-0">
+        <i class="fas fa-code me-2"></i>
+        Ferramentas de Desenvolvedor
+      </h5>
+    </div>
+    <div class="card-body">
+      <div class="alert alert-warning">
+        <i class="fas fa-exclamation-triangle me-2"></i>
+        <strong>Atenção:</strong> As ações abaixo são irreversíveis e afetam todo o sistema.
+      </div>
+      
+      <div class="row">
+        <div class="col-md-4">
+          <div class="card border-warning">
+            <div class="card-body text-center">
+              <i class="fas fa-database text-warning fa-3x mb-3"></i>
+              <h6>Reset do Sistema</h6>
+              <p class="text-muted small mb-3">
+                Remove todos os dados das tabelas: retornos, carregamentos e usuários (exceto padrão)
+              </p>
+              <button id="reset-system-btn" class="btn btn-warning btn-sm">
+                <i class="fas fa-trash-restore me-1"></i>
+                Reset Completo
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        <div class="col-md-4">
+          <div class="card border-info">
+            <div class="card-body text-center">
+              <i class="fas fa-users-cog text-info fa-3x mb-3"></i>
+              <h6>Recrear Usuários</h6>
+              <p class="text-muted small mb-3">
+                Recria usuários padrão do sistema (dev, admin, analista, operador)
+              </p>
+              <button id="recreate-users-btn" class="btn btn-info btn-sm">
+                <i class="fas fa-user-plus me-1"></i>
+                Recrear Usuários
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-4">
+          <div class="card border-success">
+            <div class="card-body text-center">
+              <i class="fas fa-sync-alt text-success fa-3x mb-3"></i>
+              <h6>Atualizar Estrutura</h6>
+              <p class="text-muted small mb-3">
+                Corrige ENUMs de roles e estrutura do banco de dados
+              </p>
+              <button id="fix-database-btn" class="btn btn-success btn-sm">
+                <i class="fas fa-wrench me-1"></i>
+                Corrigir BD
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Cards de Status -->
   <div class="row mb-4">
     <div class="col-md-3">
@@ -59,7 +125,7 @@
           <label class="form-label">Buscar Usuário</label>
           <div class="input-group">
             <span class="input-group-text"><i class="fas fa-search"></i></span>
-            <input type="text" class="form-control" id="user-search" placeholder="Nome, email ou CPF...">
+            <input type="text" class="form-control" id="user-search" placeholder="Nome, email...">
           </div>
         </div>
         <div class="col-md-2">
@@ -67,8 +133,9 @@
           <select class="form-select" id="role-filter">
             <option value="">Todos os Níveis</option>
             <option value="admin">Administrador</option>
-            <option value="manager">Gerente</option>
-            <option value="operator">Operador</option>
+            <option value="analista">Analista</option>
+            <option value="operador">Operador</option>
+            <option value="desenvolvedor">Desenvolvedor</option>
           </select>
         </div>
         <div class="col-md-2">
@@ -110,7 +177,7 @@
             <tr>
               <th width="50">#</th>
               <th>Usuário</th>
-              <th width="150">CPF</th>
+              <th width="150">Email</th>
               <th width="150">Nível de Acesso</th>
               <th width="100">Status</th>
               <th width="150">Último Acesso</th>
@@ -145,9 +212,8 @@
               <div class="invalid-feedback">Nome é obrigatório</div>
             </div>
             <div class="col-md-4 mb-3">
-              <label for="user-cpf" class="form-label">CPF <span class="text-danger">*</span></label>
-              <input type="text" class="form-control" id="user-cpf" required placeholder="000.000.000-00" maxlength="14">
-              <div class="invalid-feedback">CPF válido é obrigatório</div>
+              <label for="user-phone" class="form-label">Telefone</label>
+              <input type="tel" class="form-control" id="user-phone" placeholder="(11) 99999-9999">
             </div>
           </div>
           
@@ -156,32 +222,6 @@
               <label for="user-email" class="form-label">Email (Login) <span class="text-danger">*</span></label>
               <input type="email" class="form-control" id="user-email" required placeholder="usuario@empresa.com">
               <div class="invalid-feedback">Email válido é obrigatório</div>
-            </div>
-            <div class="col-md-4 mb-3">
-              <label for="user-phone" class="form-label">Telefone</label>
-              <input type="tel" class="form-control" id="user-phone" placeholder="(11) 99999-9999">
-            </div>
-          </div>
-          
-          <div class="row">
-            <div class="col-md-4 mb-3">
-              <label for="user-role" class="form-label">Nível de Acesso <span class="text-danger">*</span></label>
-              <select class="form-select" id="user-role" required>
-                <option value="">Selecione o nível...</option>
-                <option value="admin">Administrador</option>
-                <option value="manager">Gerente</option>
-                <option value="operator">Operador</option>
-              </select>
-              <div class="invalid-feedback">Nível de acesso é obrigatório</div>
-            </div>
-            <div class="col-md-4 mb-3">
-              <label for="user-status" class="form-label">Status <span class="text-danger">*</span></label>
-              <select class="form-select" id="user-status" required>
-                <option value="">Selecione o status...</option>
-                <option value="active">Ativo</option>
-                <option value="inactive">Inativo</option>
-              </select>
-              <div class="invalid-feedback">Status é obrigatório</div>
             </div>
             <div class="col-md-4 mb-3" id="password-container">
               <label for="user-password" class="form-label">Senha <span class="text-danger" id="password-required">*</span></label>
@@ -196,28 +236,57 @@
             </div>
           </div>
           
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label for="user-role" class="form-label">Nível de Acesso <span class="text-danger">*</span></label>
+              <select class="form-select" id="user-role" required>
+                <option value="">Selecione o nível...</option>
+                <option value="admin">Administrador</option>
+                <option value="analista">Analista</option>
+                <option value="operador">Operador</option>
+                <option value="desenvolvedor">Desenvolvedor</option>
+              </select>
+              <div class="invalid-feedback">Nível de acesso é obrigatório</div>
+            </div>
+            <div class="col-md-6 mb-3">
+              <label for="user-status" class="form-label">Status <span class="text-danger">*</span></label>
+              <select class="form-select" id="user-status" required>
+                <option value="">Selecione o status...</option>
+                <option value="active">Ativo</option>
+                <option value="inactive">Inativo</option>
+              </select>
+              <div class="invalid-feedback">Status é obrigatório</div>
+            </div>
+          </div>
+          
           <!-- Permissões por Nível -->
           <div class="mb-3">
             <label class="form-label">Permissões por Nível</label>
             <div class="card bg-light">
               <div class="card-body py-2">
                 <div class="row text-center">
-                  <div class="col-md-4">
+                  <div class="col-md-3">
                     <small class="text-muted d-block">
                       <strong>Operador:</strong><br>
                       Carregamentos, Docas (visualizar)
                     </small>
                   </div>
-                  <div class="col-md-4">
+                  <div class="col-md-3">
                     <small class="text-muted d-block">
-                      <strong>Gerente:</strong><br>
-                      + Motoristas, Veículos, Relatórios
+                      <strong>Analista:</strong><br>
+                      + Relatórios, Retornos
                     </small>
                   </div>
-                  <div class="col-md-4">
+                  <div class="col-md-3">
                     <small class="text-muted d-block">
-                      <strong>Administrador:</strong><br>
+                      <strong>Admin:</strong><br>
                       + Usuários, Configurações
+                    </small>
+                  </div>
+                  <div class="col-md-3">
+                    <small class="text-muted d-block">
+                      <strong>Desenvolvedor:</strong><br>
+                      + Reset Sistema, Debug
                     </small>
                   </div>
                 </div>
@@ -262,10 +331,6 @@
                     <td id="view-user-name">-</td>
                   </tr>
                   <tr>
-                    <td class="text-muted">CPF:</td>
-                    <td id="view-user-cpf">-</td>
-                  </tr>
-                  <tr>
                     <td class="text-muted">Email:</td>
                     <td id="view-user-email">-</td>
                   </tr>
@@ -307,27 +372,6 @@
         <div class="mt-3">
           <h6>Observações</h6>
           <p class="text-muted" id="view-user-notes">Nenhuma observação registrada.</p>
-        </div>
-        
-        <div class="mt-3">
-          <h6>Histórico de Ações Recentes</h6>
-          <div class="table-responsive">
-            <table class="table table-sm">
-              <thead>
-                <tr>
-                  <th>Data/Hora</th>
-                  <th>Ação</th>
-                  <th>Módulo</th>
-                  <th>IP</th>
-                </tr>
-              </thead>
-              <tbody id="view-user-actions">
-                <tr>
-                  <td colspan="4" class="text-center py-3 text-muted">Carregando histórico...</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
         </div>
       </div>
       <div class="modal-footer">
@@ -371,39 +415,308 @@
   </div>
 </div>
 
-<!-- Modal para Reset de Senha -->
-<div class="modal fade" id="resetPasswordModal" tabindex="-1" aria-hidden="true">
+<!-- ✅ MODAL DE CONFIRMAÇÃO DE RESET DO SISTEMA (NOVO) -->
+<div class="modal fade" id="resetSystemModal" tabindex="-1">
   <div class="modal-dialog">
     <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Resetar Senha</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title">
+          <i class="fas fa-exclamation-triangle me-2"></i>
+          Confirmar Reset do Sistema
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
-        <p>Tem certeza que deseja resetar a senha do usuário <strong id="reset-user-name">-</strong>?</p>
-        <div class="alert alert-info">
-          <i class="fas fa-info-circle me-2"></i>
-          Uma nova senha temporária será gerada e deve ser comunicada ao usuário.
+        <div class="alert alert-danger">
+          <h6><i class="fas fa-skull-crossbones me-2"></i>OPERAÇÃO IRREVERSÍVEL</h6>
+          <p class="mb-0">Esta ação irá:</p>
+          <ul class="mt-2">
+            <li>Apagar TODOS os retornos</li>
+            <li>Apagar TODOS os carregamentos</li>
+            <li>Apagar TODOS os usuários</li>
+            <li>Recriar usuários padrão</li>
+          </ul>
         </div>
-        <div class="mb-3">
-          <label for="new-password" class="form-label">Nova Senha</label>
-          <div class="input-group">
-            <input type="password" class="form-control" id="new-password" placeholder="Nova senha (mínimo 6 caracteres)">
-            <button class="btn btn-outline-secondary" type="button" id="toggle-new-password">
-              <i class="fas fa-eye"></i>
-            </button>
-            <button class="btn btn-outline-info" type="button" id="generate-password" title="Gerar senha">
-              <i class="fas fa-dice"></i>
-            </button>
-          </div>
-        </div>
+        
+        <p class="mb-3">
+          Digite <code>CONFIRMAR RESET</code> para prosseguir:
+        </p>
+        
+        <input type="text" id="reset-confirmation" class="form-control" placeholder="Digite: CONFIRMAR RESET">
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-        <button type="button" class="btn btn-warning" id="confirm-reset-password">
-          <i class="fas fa-key me-1"></i> Resetar Senha
+        <button type="button" id="confirm-reset-btn" class="btn btn-danger" disabled>
+          <i class="fas fa-trash-restore me-1"></i>
+          Executar Reset
         </button>
       </div>
     </div>
   </div>
 </div>
+
+<!-- JavaScript das Ferramentas de Desenvolvedor -->
+<script>
+// JavaScript para Ferramentas de Desenvolvedor
+const DeveloperTools = {
+  
+  // Inicializar ferramentas de desenvolvedor
+  init: function() {
+    this.checkDeveloperAccess();
+    this.setupEventListeners();
+  },
+
+  // Verificar se usuário é desenvolvedor
+  checkDeveloperAccess: async function() {
+    try {
+      // Verificar se está logado como desenvolvedor
+      const user = Auth.getUser();
+      
+      if (user && user.role === 'desenvolvedor') {
+        this.showDeveloperTools();
+        console.log('👨‍💻 Ferramentas de desenvolvedor ativadas');
+      } else {
+        // Verificar via API como fallback
+        const response = await Auth.fetchAuth('/api/auth/check-developer');
+        if (response && response.ok) {
+          const data = await response.json();
+          if (data.success && data.data.isDeveloper) {
+            this.showDeveloperTools();
+            console.log('👨‍💻 Ferramentas de desenvolvedor ativadas via API');
+          }
+        }
+      }
+    } catch (error) {
+      console.log('🔒 Ferramentas de desenvolvedor não disponíveis:', error.message);
+    }
+  },
+
+  // Mostrar ferramentas de desenvolvedor
+  showDeveloperTools: function() {
+    const devTools = document.getElementById('developer-tools');
+    if (devTools) {
+      devTools.style.display = 'block';
+    }
+  },
+
+  // Configurar event listeners
+  setupEventListeners: function() {
+    // Botão de reset do sistema
+    const resetBtn = document.getElementById('reset-system-btn');
+    if (resetBtn) {
+      resetBtn.addEventListener('click', () => {
+        this.showResetModal();
+      });
+    }
+
+    // Botão de recriar usuários
+    const recreateBtn = document.getElementById('recreate-users-btn');
+    if (recreateBtn) {
+      recreateBtn.addEventListener('click', () => {
+        this.recreateUsers();
+      });
+    }
+
+    // Botão de corrigir banco
+    const fixBtn = document.getElementById('fix-database-btn');
+    if (fixBtn) {
+      fixBtn.addEventListener('click', () => {
+        this.fixDatabase();
+      });
+    }
+
+    // Confirmação de reset
+    const confirmBtn = document.getElementById('confirm-reset-btn');
+    if (confirmBtn) {
+      confirmBtn.addEventListener('click', () => {
+        this.executeReset();
+      });
+    }
+
+    // Validação do campo de confirmação
+    const confirmInput = document.getElementById('reset-confirmation');
+    if (confirmInput) {
+      confirmInput.addEventListener('input', (e) => {
+        const confirmBtn = document.getElementById('confirm-reset-btn');
+        if (confirmBtn) {
+          confirmBtn.disabled = e.target.value !== 'CONFIRMAR RESET';
+        }
+      });
+    }
+  },
+
+  // Mostrar modal de reset
+  showResetModal: function() {
+    const modal = new bootstrap.Modal(document.getElementById('resetSystemModal'));
+    modal.show();
+    
+    // Limpar campo de confirmação
+    const confirmInput = document.getElementById('reset-confirmation');
+    if (confirmInput) {
+      confirmInput.value = '';
+    }
+    
+    // Desabilitar botão
+    const confirmBtn = document.getElementById('confirm-reset-btn');
+    if (confirmBtn) {
+      confirmBtn.disabled = true;
+    }
+  },
+
+  // Executar reset do sistema
+  executeReset: async function() {
+    const confirmBtn = document.getElementById('confirm-reset-btn');
+    
+    if (confirmBtn) {
+      confirmBtn.disabled = true;
+      confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Executando Reset...';
+    }
+
+    try {
+      console.log('🔄 Iniciando reset do sistema...');
+      
+      const response = await Auth.fetchAuth('/api/admin/reset-system', {
+        method: 'POST'
+      });
+
+      if (response && response.ok) {
+        const data = await response.json();
+        
+        if (data.success) {
+          // Fechar modal
+          const modal = bootstrap.Modal.getInstance(document.getElementById('resetSystemModal'));
+          modal.hide();
+          
+          // Mostrar sucesso
+          Utils.showSuccessMessage('Reset do sistema executado com sucesso!');
+          
+          // Recarregar dados
+          if (typeof Users !== 'undefined' && Users.loadUsersList) {
+            setTimeout(() => Users.loadUsersList(), 1000);
+          }
+          
+          console.log('✅ Reset concluído:', data.message);
+        } else {
+          throw new Error(data.message || 'Erro no reset');
+        }
+      } else {
+        throw new Error('Erro na comunicação com servidor');
+      }
+      
+    } catch (error) {
+      console.error('❌ Erro no reset:', error);
+      Utils.showErrorMessage('Erro ao executar reset: ' + error.message);
+    } finally {
+      if (confirmBtn) {
+        confirmBtn.disabled = false;
+        confirmBtn.innerHTML = '<i class="fas fa-trash-restore me-1"></i> Executar Reset';
+      }
+    }
+  },
+
+  // Recriar usuários padrão
+  recreateUsers: async function() {
+    const recreateBtn = document.getElementById('recreate-users-btn');
+    
+    if (!confirm('Deseja recriar os usuários padrão do sistema?')) {
+      return;
+    }
+
+    if (recreateBtn) {
+      recreateBtn.disabled = true;
+      recreateBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Criando...';
+    }
+
+    try {
+      console.log('👥 Recriando usuários padrão...');
+      
+      const response = await fetch('/api/debug/fix-database');
+      
+      if (response.ok) {
+        const data = await response.json();
+        
+        if (data.success) {
+          Utils.showSuccessMessage('Usuários padrão recriados com sucesso!');
+          
+          if (typeof Users !== 'undefined' && Users.loadUsersList) {
+            setTimeout(() => Users.loadUsersList(), 1000);
+          }
+          
+          console.log('✅ Usuários recriados:', data.created_users);
+        } else {
+          throw new Error(data.message || 'Erro ao recriar usuários');
+        }
+      } else {
+        throw new Error('Erro na comunicação com servidor');
+      }
+      
+    } catch (error) {
+      console.error('❌ Erro ao recriar usuários:', error);
+      Utils.showErrorMessage('Erro ao recriar usuários: ' + error.message);
+    } finally {
+      if (recreateBtn) {
+        recreateBtn.disabled = false;
+        recreateBtn.innerHTML = '<i class="fas fa-user-plus me-1"></i> Recrear Usuários';
+      }
+    }
+  },
+
+  // Corrigir estrutura do banco
+  fixDatabase: async function() {
+    const fixBtn = document.getElementById('fix-database-btn');
+    
+    if (!confirm('Deseja corrigir a estrutura do banco de dados (ENUMs de roles)?')) {
+      return;
+    }
+
+    if (fixBtn) {
+      fixBtn.disabled = true;
+      fixBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Corrigindo...';
+    }
+
+    try {
+      console.log('🔧 Corrigindo estrutura do banco...');
+      
+      const response = await fetch('/api/debug/fix-dev-role');
+      
+      if (response.ok) {
+        const data = await response.json();
+        
+        if (data.success) {
+          Utils.showSuccessMessage('Estrutura do banco corrigida com sucesso!');
+          
+          if (typeof Users !== 'undefined' && Users.loadUsersList) {
+            setTimeout(() => Users.loadUsersList(), 1000);
+          }
+          
+          console.log('✅ Banco corrigido');
+        } else {
+          throw new Error(data.message || 'Erro ao corrigir banco');
+        }
+      } else {
+        throw new Error('Erro na comunicação com servidor');
+      }
+      
+    } catch (error) {
+      console.error('❌ Erro ao corrigir banco:', error);
+      Utils.showErrorMessage('Erro ao corrigir banco: ' + error.message);
+    } finally {
+      if (fixBtn) {
+        fixBtn.disabled = false;
+        fixBtn.innerHTML = '<i class="fas fa-wrench me-1"></i> Corrigir BD';
+      }
+    }
+  }
+};
+
+// Inicializar quando DOM estiver pronto
+document.addEventListener('DOMContentLoaded', function() {
+  // Aguardar um pouco para garantir que Auth esteja carregado
+  setTimeout(() => {
+    DeveloperTools.init();
+  }, 1000);
+});
+
+// Exportar para uso global
+window.DeveloperTools = DeveloperTools;
+</script>
