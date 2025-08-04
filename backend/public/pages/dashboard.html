@@ -61,9 +61,23 @@
     body.dashboard-page .dashboard-cards {
       display: flex;
     }
+
+    /* Estilos para retornos */
+    .status-aguardando { background-color: #fff3cd; border-left: 4px solid #ffc107; }
+    .status-pendente { background-color: #cce7f8; border-left: 4px solid #0d6efd; }
+    .status-concluido { background-color: #d4edda; border-left: 4px solid #198754; }
+    .status-cancelado { background-color: #f8d7da; border-left: 4px solid #dc3545; }
+    
+    .retorno-item:hover {
+      box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+      transition: box-shadow 0.3s ease;
+    }
   </style>
 </head>
 <body>
+  <!-- Alert Container CORRIGIDO -->
+  <div id="alert-container" class="position-fixed" style="top: 20px; right: 20px; z-index: 9999;"></div>
+
   <div id="dashboard-container" class="container-fluid">
     <div class="row">
       <!-- Sidebar / Menu Lateral -->
@@ -175,7 +189,7 @@
             </div>
           </div>
           
-          <!-- Card Retornos Pendentes (NOVO) -->
+          <!-- Card Retornos Pendentes CORRIGIDO -->
           <div class="col-md-2 col-sm-6 mb-3">
             <div class="card card-retornos h-100" onclick="irParaRetornos()" style="cursor: pointer;">
               <div class="card-body text-center">
@@ -186,24 +200,24 @@
             </div>
           </div>
           
-          <!-- Card Taxa de Ocupação -->
+          <!-- Card Retornos Aguardando NOVO -->
           <div class="col-md-3 col-sm-6 mb-3">
             <div class="card text-white bg-warning h-100">
               <div class="card-body text-center">
-                <i class="fas fa-chart-pie fa-2x mb-2"></i>
-                <div class="display-6 fw-bold" id="taxa-ocupacao">0%</div>
-                <small class="text-white-75">Taxa de Ocupação</small>
+                <i class="fas fa-clock fa-2x mb-2"></i>
+                <div class="display-6 fw-bold" id="aguardando-count">0</div>
+                <small class="text-white-75">Aguardando Chegada</small>
               </div>
             </div>
           </div>
           
-          <!-- Card Eficiência -->
+          <!-- Card Retornos Concluídos NOVO -->
           <div class="col-md-3 col-sm-6 mb-3">
             <div class="card text-white bg-info h-100">
               <div class="card-body text-center">
-                <i class="fas fa-chart-line fa-2x mb-2"></i>
-                <div class="display-6 fw-bold" id="eficiencia">0%</div>
-                <small class="text-white-75">Eficiência</small>
+                <i class="fas fa-check-circle fa-2x mb-2"></i>
+                <div class="display-6 fw-bold" id="conferido-count">0</div>
+                <small class="text-white-75">Concluídos</small>
               </div>
             </div>
           </div>
@@ -211,7 +225,41 @@
         
         <!-- Conteúdo da página (carregado dinamicamente) -->
         <div id="content-container">
-          <!-- O conteúdo será carregado dinamicamente via JavaScript -->
+          <!-- CONTAINER DE RETORNOS ADICIONADO -->
+          <div id="retornos-content" style="display: none;">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+              <h2><i class="fas fa-undo"></i> Retornos de Carga</h2>
+              <div>
+                <button class="btn btn-outline-secondary me-2" id="refresh-retornos">
+                  <i class="fas fa-sync-alt"></i> Atualizar
+                </button>
+                <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#registrarRetornoModal">
+                  <i class="fas fa-plus"></i> Registrar Retorno
+                </button>
+              </div>
+            </div>
+            
+            <!-- Filtros -->
+            <div class="row mb-3">
+              <div class="col-md-4">
+                <input type="text" class="form-control" id="search-retornos" placeholder="🔍 Buscar por motorista ou NF...">
+              </div>
+              <div class="col-md-2">
+                <select class="form-select" id="filter-status">
+                  <option value="">Todos os Status</option>
+                  <option value="aguardando_chegada">Aguardando</option>
+                  <option value="pendente">Pendente</option>
+                  <option value="concluido">Concluído</option>
+                  <option value="cancelado">Cancelado</option>
+                </select>
+              </div>
+            </div>
+            
+            <!-- Lista de Retornos - CONTAINER ESSENCIAL -->
+            <div id="retornos-container">
+              <!-- Os retornos serão carregados aqui pelo JavaScript -->
+            </div>
+          </div>
         </div>
       </main>
     </div>
@@ -254,7 +302,6 @@
               <div id="existing-driver-container">
                 <select class="form-select" id="driver-select">
                   <option value="">Selecione o motorista...</option>
-                  <!-- Será preenchido via JavaScript -->
                 </select>
               </div>
               
@@ -294,7 +341,6 @@
                       <td>
                         <select class="form-select product-select">
                           <option value="">Selecione o produto...</option>
-                          <!-- Será preenchido via JavaScript -->
                         </select>
                       </td>
                       <td>
@@ -337,7 +383,7 @@
     </div>
   </div>
 
-  <!-- Modal Registrar Retorno -->
+  <!-- Modal Registrar Retorno CORRIGIDO -->
   <div class="modal fade" id="registrarRetornoModal" tabindex="-1">
     <div class="modal-dialog">
       <div class="modal-content">
@@ -350,20 +396,28 @@
         <form id="registrar-retorno-form">
           <div class="modal-body">
             <div class="mb-3">
-              <label for="retorno-cpf" class="form-label">CPF do Motorista *</label>
-              <input type="text" class="form-control" id="retorno-cpf" placeholder="000.000.000-00" required>
+              <label for="retorno-nf" class="form-label">Número da NF *</label>
+              <input type="text" class="form-control" id="retorno-nf" placeholder="NF-001" required>
             </div>
             <div class="mb-3">
-              <label for="retorno-nome" class="form-label">Nome do Motorista *</label>
-              <input type="text" class="form-control" id="retorno-nome" placeholder="Nome completo" required>
+              <label for="retorno-motorista" class="form-label">Nome do Motorista *</label>
+              <input type="text" class="form-control" id="retorno-motorista" placeholder="Nome completo" required>
             </div>
             <div class="mb-3">
-              <label for="retorno-placa" class="form-label">Placa do Veículo *</label>
-              <input type="text" class="form-control" id="retorno-placa" placeholder="ABC1234" required>
+              <label for="retorno-data" class="form-label">Data de Retorno *</label>
+              <input type="date" class="form-control" id="retorno-data" required>
             </div>
             <div class="mb-3">
-              <label for="retorno-telefone" class="form-label">Telefone</label>
-              <input type="text" class="form-control" id="retorno-telefone" placeholder="(11) 99999-9999">
+              <label for="retorno-horario" class="form-label">Horário de Retorno</label>
+              <input type="time" class="form-control" id="retorno-horario">
+            </div>
+            <div class="mb-3">
+              <label for="retorno-total-itens" class="form-label">Total de Itens Esperados</label>
+              <input type="number" class="form-control" id="retorno-total-itens" min="0" placeholder="0">
+            </div>
+            <div class="mb-3">
+              <label for="retorno-observacoes" class="form-label">Observações</label>
+              <textarea class="form-control" id="retorno-observacoes" rows="3" placeholder="Observações sobre o retorno..."></textarea>
             </div>
           </div>
           <div class="modal-footer">
@@ -377,9 +431,9 @@
     </div>
   </div>
 
-  <!-- Modal Bipagem de Retorno -->
+  <!-- Modal Bipagem de Retorno MELHORADO -->
   <div class="modal fade" id="bipagemModal" tabindex="-1">
-    <div class="modal-dialog modal-xl">
+    <div class="modal-dialog modal-lg">
       <div class="modal-content">
         <div class="modal-header">
           <h5 class="modal-title">
@@ -388,54 +442,51 @@
           <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
         <div class="modal-body">
-          <div class="row">
-            <!-- Área de Bipagem -->
-            <div class="col-md-4">
-              <div class="card">
-                <div class="card-header">
-                  <h6 class="mb-0">Scanner / Código de Barras</h6>
-                </div>
-                <div class="card-body">
-                  <div class="mb-3">
-                    <label for="codigo-barras" class="form-label">Código de Barras *</label>
-                    <input type="text" class="form-control" id="codigo-barras" 
-                           placeholder="Digite ou escaneie..." autofocus style="font-family: 'Courier New', monospace; font-size: 1.1em;">
-                  </div>
-                  <div class="mb-3">
-                    <label for="produto-nome" class="form-label">Nome do Produto</label>
-                    <input type="text" class="form-control" id="produto-nome" 
-                           placeholder="Produto (opcional)">
-                  </div>
-                  <div class="mb-3">
-                    <label for="quantidade" class="form-label">Quantidade</label>
-                    <input type="number" class="form-control" id="quantidade" value="1" min="1">
-                  </div>
-                  <button type="button" class="btn btn-primary w-100" id="bipar-item-btn">
-                    <i class="fas fa-barcode"></i> Bipar Item
-                  </button>
-                </div>
-              </div>
-            </div>
-            
-            <!-- Lista de Itens Bipados -->
+          <div id="retorno-info" class="mb-3"></div>
+          
+          <div class="row mb-3">
             <div class="col-md-8">
-              <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                  <h6 class="mb-0">Itens Bipados</h6>
-                  <span class="badge bg-success" id="total-itens-bipados">0 itens</span>
-                </div>
-                <div class="card-body">
-                  <div id="itens-bipados-list" style="max-height: 400px; overflow-y: auto;">
-                    <!-- Lista será preenchida dinamicamente -->
-                  </div>
-                </div>
-              </div>
+              <label for="codigo-item-input" class="form-label">Código do Item</label>
+              <input type="text" 
+                     class="form-control form-control-lg" 
+                     id="codigo-item-input" 
+                     placeholder="Escaneie ou digite o código do item">
+            </div>
+            <div class="col-md-4">
+              <label for="quantidade-input" class="form-label">Quantidade</label>
+              <input type="number" 
+                     class="form-control form-control-lg" 
+                     id="quantidade-input" 
+                     value="1" min="1">
+            </div>
+          </div>
+          
+          <div class="mb-3">
+            <label for="descricao-input" class="form-label">Descrição (Opcional)</label>
+            <input type="text" 
+                   class="form-control" 
+                   id="descricao-input" 
+                   placeholder="Descrição do item">
+          </div>
+          
+          <div class="d-grid gap-2 mb-3">
+            <button class="btn btn-primary btn-lg" id="bipar-item-btn">
+              <i class="fas fa-plus"></i> Bipar Item
+            </button>
+          </div>
+          
+          <div id="itens-bipados-container">
+            <h6><i class="fas fa-list"></i> Itens Bipados</h6>
+            <div id="itens-bipados-list" class="border rounded p-2" style="max-height: 300px; overflow-y: auto;">
+              <!-- Lista de itens será inserida aqui -->
             </div>
           </div>
         </div>
         <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
-          <button type="button" class="btn btn-success" onclick="window.RetornosDashboard?.finalizarConferencia()">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+            <i class="fas fa-times"></i> Fechar
+          </button>
+          <button type="button" class="btn btn-success" id="finalizar-bipagem-btn">
             <i class="fas fa-check"></i> Finalizar Conferência
           </button>
         </div>
@@ -447,7 +498,7 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   
   <!-- Scripts JS - Ordem Importante -->
-   <script src="../js/config.js"></script>
+  <script src="../js/config.js"></script>
   <script src="../js/auth.js"></script>
   <script src="../js/modules/utils.js"></script>
   <script src="../js/modules/dashboard.js"></script>
@@ -458,72 +509,80 @@
   <script src="../js/modules/docks.js"></script>
   <script src="../js/modules/users.js"></script>
   
-  <!-- Script para remover títulos duplicados -->
+  <!-- Script para controle de páginas MELHORADO -->
   <script>
-    // Função para remover títulos "Dashboard" duplicados
+    // Função para remover títulos duplicados
     function removeDuplicateTitles() {
-      // Encontrar todos os elementos h1 com id="page-title"
       const titles = document.querySelectorAll('h1#page-title');
-      
-      // Se houver mais de um, remover os extras
       if (titles.length > 1) {
-        // Manter apenas o primeiro
         for (let i = 1; i < titles.length; i++) {
           titles[i].remove();
         }
       }
     }
     
-    // Executar quando o DOM estiver carregado
-    document.addEventListener('DOMContentLoaded', removeDuplicateTitles);
-    
-    // Também executar quando o conteúdo for atualizado
-    const observer = new MutationObserver(function(mutations) {
-      mutations.forEach(function(mutation) {
-        if (mutation.type === 'childList') {
-          removeDuplicateTitles();
-        }
-      });
-    });
-    
-    // Observar mudanças no container de conteúdo
-    const contentContainer = document.getElementById('content-container');
-    if (contentContainer) {
-      observer.observe(contentContainer, { childList: true, subtree: true });
-    }
-    
     // Função para ir para página de retornos
     function irParaRetornos() {
-      // Simular clique no menu de retornos
-      const retornosLink = document.querySelector('[data-page="retornos"]');
-      if (retornosLink) {
-        retornosLink.click();
+      const retornosContent = document.getElementById('retornos-content');
+      const contentContainer = document.getElementById('content-container');
+      const pageTitle = document.getElementById('page-title');
+      
+      if (retornosContent && contentContainer && pageTitle) {
+        // Esconder outros conteúdos
+        const allContent = contentContainer.children;
+        for (let i = 0; i < allContent.length; i++) {
+          allContent[i].style.display = 'none';
+        }
+        
+        // Mostrar conteúdo de retornos
+        retornosContent.style.display = 'block';
+        pageTitle.textContent = 'Retornos de Carga';
+        
+        // Atualizar menu ativo
+        document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
+        document.querySelector('[data-page="retornos"]')?.classList.add('active');
+        
+        // Carregar dados de retornos se disponível
+        if (window.RetornosDashboard) {
+          window.RetornosDashboard.refreshData();
+        }
       }
     }
     
-    // Função para carregar estatísticas de retornos
+    // Função para carregar estatísticas de retornos CORRIGIDA
     async function carregarEstatisticasRetornos() {
       try {
         const response = await fetch('/api/retornos/stats');
         if (response.ok) {
           const data = await response.json();
           
-          // 🔧 CORREÇÃO: Adicionar verificação de segurança para propriedades
-          const aguardandoChegada = (data.data && data.data.aguardando_chegada) || 0;
-          const bipando = (data.data && data.data.bipando) || 0;
-          const retornosPendentes = aguardandoChegada + bipando;
-          
-          const elemento = document.getElementById('retornos-pendentes');
-          if (elemento) {
-            elemento.textContent = retornosPendentes;
+          if (data.success && data.data) {
+            // Mapear elementos corretamente
+            const mappings = [
+              { id: 'retornos-pendentes', value: data.data.pendentes || 0 },
+              { id: 'aguardando-count', value: data.data.aguardando_chegada || 0 },
+              { id: 'conferido-count', value: data.data.concluidos || 0 }
+            ];
             
-            // Adicionar efeito pulsante se houver retornos pendentes
-            const card = elemento.closest('.card-retornos');
-            if (retornosPendentes > 0 && card) {
-              card.classList.add('pulse');
-            } else if (card) {
-              card.classList.remove('pulse');
-            }
+            mappings.forEach(mapping => {
+              const elemento = document.getElementById(mapping.id);
+              if (elemento) {
+                elemento.textContent = mapping.value;
+                
+                // Adicionar efeito pulsante se houver retornos pendentes
+                if (mapping.id === 'retornos-pendentes' && mapping.value > 0) {
+                  const card = elemento.closest('.card-retornos');
+                  if (card) {
+                    card.classList.add('pulse');
+                  }
+                } else if (mapping.id === 'retornos-pendentes') {
+                  const card = elemento.closest('.card-retornos');
+                  if (card) {
+                    card.classList.remove('pulse');
+                  }
+                }
+              }
+            });
           }
         }
       } catch (error) {
@@ -536,28 +595,41 @@
       const pageTitle = document.getElementById('page-title');
       if (pageTitle && pageTitle.textContent.trim() === 'Dashboard') {
         document.body.classList.add('dashboard-page');
-        // Carregar estatísticas quando está no dashboard
         carregarEstatisticasRetornos();
       } else {
         document.body.classList.remove('dashboard-page');
       }
     }
     
-    // Carregar estatísticas quando a página carrega
+    // Event listeners para navegação
     document.addEventListener('DOMContentLoaded', function() {
+      removeDuplicateTitles();
       controlarVisibilidadeCards();
       
       // Observar mudanças no título da página
-      const titleObserver = new MutationObserver(function() {
-        controlarVisibilidadeCards();
-      });
-      
+      const titleObserver = new MutationObserver(controlarVisibilidadeCards);
       const pageTitle = document.getElementById('page-title');
       if (pageTitle) {
         titleObserver.observe(pageTitle, { childList: true, characterData: true, subtree: true });
       }
       
-      // Atualizar a cada 30 segundos (só quando no dashboard)
+      // Observar mudanças no container de conteúdo
+      const contentObserver = new MutationObserver(removeDuplicateTitles);
+      const contentContainer = document.getElementById('content-container');
+      if (contentContainer) {
+        contentObserver.observe(contentContainer, { childList: true, subtree: true });
+      }
+      
+      // Adicionar event listener para o link de retornos
+      const retornosLink = document.querySelector('[data-page="retornos"]');
+      if (retornosLink) {
+        retornosLink.addEventListener('click', function(e) {
+          e.preventDefault();
+          irParaRetornos();
+        });
+      }
+      
+      // Atualizar estatísticas a cada 30 segundos (só quando no dashboard)
       setInterval(function() {
         if (document.body.classList.contains('dashboard-page')) {
           carregarEstatisticasRetornos();
