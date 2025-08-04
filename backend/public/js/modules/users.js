@@ -1,4 +1,34 @@
-// js/modules/users.js
+// js/modules/users.js - VERSÃO CORRIGIDA COM MAPEAMENTO DE ROLES
+
+// ✅ FUNÇÃO PARA MAPEAR ROLES CORRETAMENTE
+function getRoleDisplayName(role) {
+  const roleMap = {
+    'admin': 'Administrador',
+    'analista': 'Analista', 
+    'operador': 'Operador',
+    'desenvolvedor': 'Desenvolvedor',  // ✅ ROLE QUE FALTAVA!
+    // Para compatibilidade com roles antigas
+    'analyst': 'Analista',
+    'operator': 'Operador'
+  };
+  
+  return roleMap[role] || role; // fallback para mostrar a role original
+}
+
+// ✅ FUNÇÃO PARA OBTER CLASSE CSS DA ROLE
+function getRoleClass(role) {
+  const classMap = {
+    'admin': 'danger',
+    'analista': 'warning',
+    'operador': 'info',
+    'desenvolvedor': 'success',  // ✅ CLASSE PARA DESENVOLVEDOR
+    // Para compatibilidade
+    'analyst': 'warning',
+    'operator': 'info'
+  };
+  
+  return classMap[role] || 'secondary';
+}
 
 // Objeto para gerenciar usuários
 const Users = {
@@ -111,7 +141,7 @@ const Users = {
     }
   },
 
-  // Atualizar contadores de status
+  // ✅ ATUALIZAR CONTADORES DE STATUS (CORRIGIDO)
   updateStatusCounts: function(users) {
     // 🔧 CORREÇÃO: Verificar se users é array
     if (!Array.isArray(users)) {
@@ -122,9 +152,12 @@ const Users = {
     const totalUsers = users.length;
     const activeUsers = users.filter(user => user.status === 'active').length;
     const inactiveUsers = users.filter(user => user.status === 'inactive').length;
+    
+    // ✅ CORREÇÃO: Incluir todas as variações de roles
     const adminUsers = users.filter(user => user.role === 'admin').length;
-    const operatorUsers = users.filter(user => user.role === 'operator').length;
-    const analystUsers = users.filter(user => user.role === 'analyst').length;
+    const analystUsers = users.filter(user => user.role === 'analista' || user.role === 'analyst').length;
+    const operatorUsers = users.filter(user => user.role === 'operador' || user.role === 'operator').length;
+    const developerUsers = users.filter(user => user.role === 'desenvolvedor').length;
     
     // Atualizar elementos na tela se existirem
     const totalElement = document.getElementById('total-users-count');
@@ -144,9 +177,23 @@ const Users = {
     
     const analystElement = document.getElementById('analyst-users-count');
     if (analystElement) analystElement.textContent = analystUsers;
+    
+    // ✅ NOVO: Contador para desenvolvedor
+    const developerElement = document.getElementById('developer-users-count');
+    if (developerElement) developerElement.textContent = developerUsers;
+    
+    console.log('📊 Contadores atualizados:', {
+      total: totalUsers,
+      active: activeUsers,
+      inactive: inactiveUsers,
+      admin: adminUsers,
+      analyst: analystUsers,
+      operator: operatorUsers,
+      developer: developerUsers
+    });
   },
 
-  // Exibir lista de usuários
+  // ✅ EXIBIR LISTA DE USUÁRIOS (CORRIGIDO)
   displayUsersList: function(users) {
     const tbody = document.getElementById('users-list');
     if (!tbody) return;
@@ -176,8 +223,11 @@ const Users = {
     users.forEach((user, index) => {
       const statusClass = user.status === 'active' ? 'success' : 'danger';
       const statusText = user.status === 'active' ? 'Ativo' : 'Inativo';
-      const roleClass = user.role === 'admin' ? 'danger' : user.role === 'analyst' ? 'warning' : 'info';
-      const roleText = user.role === 'admin' ? 'Administrador' : user.role === 'analyst' ? 'Analista' : 'Operador';
+      
+      // ✅ CORREÇÃO PRINCIPAL: Usar função para mapear roles
+      const roleClass = getRoleClass(user.role);
+      const roleText = getRoleDisplayName(user.role);
+      
       const lastLogin = user.last_login ? Utils.formatDate(user.last_login) : 'Nunca';
       
       html += `
@@ -293,7 +343,7 @@ const Users = {
     this.updateStatusCounts(filteredUsers);
   },
 
-  // Visualizar usuário
+  // ✅ VISUALIZAR USUÁRIO (CORRIGIDO)
   viewUser: async function(userId) {
     try {
       const userResponse = await Auth.fetchAuth(`${app.API_URL}/users/${userId}`);
@@ -303,7 +353,10 @@ const Users = {
       
       document.getElementById('view-user-name').textContent = user.name;
       document.getElementById('view-user-email').textContent = user.email;
-      document.getElementById('view-user-role').textContent = user.role === 'admin' ? 'Administrador' : user.role === 'analyst' ? 'Analista' : 'Operador';
+      
+      // ✅ CORREÇÃO: Usar função para mapear role
+      document.getElementById('view-user-role').textContent = getRoleDisplayName(user.role);
+      
       document.getElementById('view-user-status').textContent = user.status === 'active' ? 'Ativo' : 'Inativo';
       document.getElementById('view-user-created').textContent = Utils.formatDate(user.created_at);
       document.getElementById('view-user-last-login').textContent = user.last_login ? Utils.formatDate(user.last_login) : 'Nunca';
@@ -522,7 +575,7 @@ const Users = {
       id: user.id,
       nome: user.name,
       email: user.email,
-      role: user.role,
+      role: getRoleDisplayName(user.role), // ✅ USAR FUNÇÃO DE MAPEAMENTO
       status: user.status,
       'data_de_cadastro': Utils.formatDate(user.created_at)
     }));
@@ -548,3 +601,7 @@ const Users = {
     }
   }
 };
+
+// ✅ EXPORTAR FUNÇÕES GLOBALMENTE PARA USO EM OUTROS MÓDULOS
+window.getRoleDisplayName = getRoleDisplayName;
+window.getRoleClass = getRoleClass;
