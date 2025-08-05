@@ -1,4 +1,4 @@
-// js/modules/users.js - VERSÃO CORRIGIDA COM MAPEAMENTO DE ROLES
+// js/modules/users.js - VERSÃO CORRIGIDA COM MAPEAMENTO DE ROLES E FERRAMENTAS DE DESENVOLVEDOR
 
 // ✅ FUNÇÃO PARA MAPEAR ROLES CORRETAMENTE
 function getRoleDisplayName(role) {
@@ -40,6 +40,8 @@ const Users = {
   init: function() {
     this.loadUsersList();
     this.setupUsersEventListeners();
+    // ✅ INICIALIZAR FERRAMENTAS DE DESENVOLVEDOR
+    this.initDeveloperTools();
   },
 
   // Configurar event listeners
@@ -599,9 +601,322 @@ const Users = {
         </tr>
       `;
     }
+  },
+
+  // ============================================
+  // ✅ FERRAMENTAS DE DESENVOLVEDOR
+  // ============================================
+
+  // Inicializar ferramentas de desenvolvedor
+  initDeveloperTools: function() {
+    // Verificar se o usuário logado é desenvolvedor
+    const currentUser = Auth.getUser();
+    if (currentUser?.role === 'desenvolvedor') {
+      this.showDeveloperTools();
+      this.setupDeveloperEvents();
+      console.log('🛠️ Ferramentas de desenvolvedor ativadas para:', currentUser.name);
+    }
+  },
+
+  // Mostrar ferramentas de desenvolvedor
+  showDeveloperTools: function() {
+    const devTools = document.getElementById('developer-tools');
+    if (devTools) {
+      devTools.style.display = 'block';
+      console.log('🔧 Painel de ferramentas de desenvolvedor habilitado');
+    }
+  },
+
+  // Configurar eventos das ferramentas de desenvolvedor
+  setupDeveloperEvents: function() {
+    // Reset do sistema
+    const resetSystemBtn = document.getElementById('reset-system-btn');
+    if (resetSystemBtn) {
+      resetSystemBtn.addEventListener('click', () => {
+        this.confirmSystemReset();
+      });
+    }
+
+    // Backup do banco de dados
+    const backupBtn = document.getElementById('backup-database-btn');
+    if (backupBtn) {
+      backupBtn.addEventListener('click', () => {
+        this.createDatabaseBackup();
+      });
+    }
+
+    // Gerar dados de teste
+    const generateTestDataBtn = document.getElementById('generate-test-data-btn');
+    if (generateTestDataBtn) {
+      generateTestDataBtn.addEventListener('click', () => {
+        this.generateTestData();
+      });
+    }
+
+    // Limpar logs do sistema
+    const clearLogsBtn = document.getElementById('clear-logs-btn');
+    if (clearLogsBtn) {
+      clearLogsBtn.addEventListener('click', () => {
+        this.clearSystemLogs();
+      });
+    }
+
+    // Verificar integridade do sistema
+    const checkIntegrityBtn = document.getElementById('check-integrity-btn');
+    if (checkIntegrityBtn) {
+      checkIntegrityBtn.addEventListener('click', () => {
+        this.checkSystemIntegrity();
+      });
+    }
+
+    // Executar manutenção do banco
+    const maintenanceBtn = document.getElementById('maintenance-btn');
+    if (maintenanceBtn) {
+      maintenanceBtn.addEventListener('click', () => {
+        this.runDatabaseMaintenance();
+      });
+    }
+
+    console.log('⚙️ Event listeners das ferramentas de desenvolvedor configurados');
+  },
+
+  // Confirmar reset do sistema
+  confirmSystemReset: function() {
+    const confirmation = confirm(
+      '⚠️ ATENÇÃO: Esta ação irá APAGAR TODOS OS DADOS do sistema!\n\n' +
+      'Isso inclui:\n' +
+      '• Todos os usuários (exceto admin padrão)\n' +
+      '• Todas as configurações\n' +
+      '• Todos os logs\n' +
+      '• Todos os dados de aplicação\n\n' +
+      'Esta ação é IRREVERSÍVEL!\n\n' +
+      'Tem certeza que deseja continuar?'
+    );
+
+    if (confirmation) {
+      const doubleConfirmation = prompt(
+        'Para confirmar o reset, digite "RESET TOTAL" (sem as aspas):'
+      );
+
+      if (doubleConfirmation === 'RESET TOTAL') {
+        this.executeSystemReset();
+      } else {
+        Utils.showWarningMessage('Reset cancelado - texto de confirmação incorreto');
+      }
+    }
+  },
+
+  // Executar reset do sistema
+  executeSystemReset: async function() {
+    try {
+      const resetBtn = document.getElementById('reset-system-btn');
+      const resetSpinner = Utils.showButtonSpinner(resetBtn, 'Resetando sistema...');
+
+      const response = await Auth.fetchAuth(`${app.API_URL}/admin/reset-system`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      resetSpinner();
+
+      if (response.success !== false) {
+        Utils.showSuccessMessage(
+          'Sistema resetado com sucesso! Você será redirecionado para o login em 3 segundos...'
+        );
+        
+        setTimeout(() => {
+          window.location.href = '/login.html';
+        }, 3000);
+      } else {
+        Utils.showErrorMessage('Erro ao resetar sistema: ' + (response.message || 'Erro desconhecido'));
+      }
+
+    } catch (error) {
+      console.error('Erro ao resetar sistema:', error);
+      Utils.showErrorMessage('Erro ao resetar sistema: ' + error.message);
+    }
+  },
+
+  // Criar backup do banco de dados
+  createDatabaseBackup: async function() {
+    try {
+      const backupBtn = document.getElementById('backup-database-btn');
+      const resetSpinner = Utils.showButtonSpinner(backupBtn, 'Criando backup...');
+
+      const response = await Auth.fetchAuth(`${app.API_URL}/admin/backup-database`, {
+        method: 'POST'
+      });
+
+      resetSpinner();
+
+      if (response.success !== false) {
+        Utils.showSuccessMessage('Backup criado com sucesso!');
+        
+        // Se a resposta contém um link de download
+        if (response.download_url) {
+          const link = document.createElement('a');
+          link.href = response.download_url;
+          link.download = `backup_${new Date().toISOString().slice(0, 10)}.sql`;
+          link.click();
+        }
+      } else {
+        Utils.showErrorMessage('Erro ao criar backup: ' + (response.message || 'Erro desconhecido'));
+      }
+
+    } catch (error) {
+      console.error('Erro ao criar backup:', error);
+      Utils.showErrorMessage('Erro ao criar backup: ' + error.message);
+    }
+  },
+
+  // Gerar dados de teste
+  generateTestData: async function() {
+    const confirmation = confirm(
+      'Isso irá gerar dados de teste no sistema.\n' +
+      'Continuar?'
+    );
+
+    if (!confirmation) return;
+
+    try {
+      const generateBtn = document.getElementById('generate-test-data-btn');
+      const resetSpinner = Utils.showButtonSpinner(generateBtn, 'Gerando dados...');
+
+      const response = await Auth.fetchAuth(`${app.API_URL}/admin/generate-test-data`, {
+        method: 'POST'
+      });
+
+      resetSpinner();
+
+      if (response.success !== false) {
+        Utils.showSuccessMessage('Dados de teste gerados com sucesso!');
+        this.loadUsersList(); // Recarregar a lista de usuários
+      } else {
+        Utils.showErrorMessage('Erro ao gerar dados de teste: ' + (response.message || 'Erro desconhecido'));
+      }
+
+    } catch (error) {
+      console.error('Erro ao gerar dados de teste:', error);
+      Utils.showErrorMessage('Erro ao gerar dados de teste: ' + error.message);
+    }
+  },
+
+  // Limpar logs do sistema
+  clearSystemLogs: async function() {
+    const confirmation = confirm(
+      'Isso irá apagar todos os logs do sistema.\n' +
+      'Continuar?'
+    );
+
+    if (!confirmation) return;
+
+    try {
+      const clearBtn = document.getElementById('clear-logs-btn');
+      const resetSpinner = Utils.showButtonSpinner(clearBtn, 'Limpando logs...');
+
+      const response = await Auth.fetchAuth(`${app.API_URL}/admin/clear-logs`, {
+        method: 'POST'
+      });
+
+      resetSpinner();
+
+      if (response.success !== false) {
+        Utils.showSuccessMessage('Logs do sistema limpos com sucesso!');
+      } else {
+        Utils.showErrorMessage('Erro ao limpar logs: ' + (response.message || 'Erro desconhecido'));
+      }
+
+    } catch (error) {
+      console.error('Erro ao limpar logs:', error);
+      Utils.showErrorMessage('Erro ao limpar logs: ' + error.message);
+    }
+  },
+
+  // Verificar integridade do sistema
+  checkSystemIntegrity: async function() {
+    try {
+      const checkBtn = document.getElementById('check-integrity-btn');
+      const resetSpinner = Utils.showButtonSpinner(checkBtn, 'Verificando...');
+
+      const response = await Auth.fetchAuth(`${app.API_URL}/admin/check-integrity`, {
+        method: 'GET'
+      });
+
+      resetSpinner();
+
+      if (response.success !== false) {
+        const issues = response.issues || [];
+        if (issues.length === 0) {
+          Utils.showSuccessMessage('Sistema íntegro - nenhum problema encontrado!');
+        } else {
+          let message = 'Problemas encontrados:\n\n';
+          issues.forEach((issue, index) => {
+            message += `${index + 1}. ${issue}\n`;
+          });
+          Utils.showWarningMessage(message);
+        }
+      } else {
+        Utils.showErrorMessage('Erro ao verificar integridade: ' + (response.message || 'Erro desconhecido'));
+      }
+
+    } catch (error) {
+      console.error('Erro ao verificar integridade:', error);
+      Utils.showErrorMessage('Erro ao verificar integridade: ' + error.message);
+    }
+  },
+
+  // Executar manutenção do banco de dados
+  runDatabaseMaintenance: async function() {
+    const confirmation = confirm(
+      'Isso irá executar rotinas de manutenção no banco de dados:\n' +
+      '• Otimização de tabelas\n' +
+      '• Limpeza de dados orfãos\n' +
+      '• Reorganização de índices\n\n' +
+      'O processo pode demorar alguns minutos.\n' +
+      'Continuar?'
+    );
+
+    if (!confirmation) return;
+
+    try {
+      const maintenanceBtn = document.getElementById('maintenance-btn');
+      const resetSpinner = Utils.showButtonSpinner(maintenanceBtn, 'Executando manutenção...');
+
+      const response = await Auth.fetchAuth(`${app.API_URL}/admin/database-maintenance`, {
+        method: 'POST'
+      });
+
+      resetSpinner();
+
+      if (response.success !== false) {
+        Utils.showSuccessMessage(
+          'Manutenção do banco concluída com sucesso!\n' +
+          `Tempo decorrido: ${response.duration || 'N/A'}\n` +
+          `Operações realizadas: ${response.operations_count || 'N/A'}`
+        );
+      } else {
+        Utils.showErrorMessage('Erro na manutenção: ' + (response.message || 'Erro desconhecido'));
+      }
+
+    } catch (error) {
+      console.error('Erro na manutenção do banco:', error);
+      Utils.showErrorMessage('Erro na manutenção do banco: ' + error.message);
+    }
   }
 };
 
 // ✅ EXPORTAR FUNÇÕES GLOBALMENTE PARA USO EM OUTROS MÓDULOS
 window.getRoleDisplayName = getRoleDisplayName;
 window.getRoleClass = getRoleClass;
+
+// Inicializar quando o DOM estiver carregado
+document.addEventListener('DOMContentLoaded', () => {
+  // Aguardar um pouco para garantir que Auth e outros módulos estejam prontos
+  setTimeout(() => {
+    if (typeof Users !== 'undefined') {
+      Users.init();
+    }
+  }, 1000);
+});

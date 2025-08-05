@@ -21,11 +21,18 @@ const Auth = {
   },
   
   // Obter dados do usuário
-  getUser: function() {
-    const userStr = localStorage.getItem('user');
-    if (!userStr) return null;
-    return JSON.parse(userStr);
-  },
+ getUser() {
+  try {
+    const userData = localStorage.getItem('dockflow_user');
+    if (userData && userData !== 'undefined' && userData !== 'null') {
+      return JSON.parse(userData);
+    }
+    return authState.user;
+  } catch (error) {
+    console.error('❌ Erro ao obter dados do usuário:', error);
+    return authState.user;
+  }
+},
   
   // Verificar se o usuário tem determinada função
   hasRole: function(role) {
