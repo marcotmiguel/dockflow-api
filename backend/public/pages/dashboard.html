@@ -637,6 +637,30 @@
       }, 30000);
     });
   </script>
+<script>
+  // ⇩ NOVO PATCH — Mostrar aba Usuários para admin OU desenvolvedor
+  function aplicarPermissoesMenu() {
+    try {
+      const role = (window.Auth && typeof Auth.getUser === 'function')
+        ? (Auth.getUser()?.role || null)
+        : null;
+      const allow = role === 'admin' || role === 'desenvolvedor';
+
+      document.querySelectorAll('[data-role="admin"]').forEach(el => {
+        el.style.display = allow ? '' : 'none';
+      });
+    } catch (e) {
+      console.warn('Permissões de menu: fallback (não foi possível ler role).', e);
+    }
+  }
+
+  // Garante execução após carregamento
+  document.addEventListener('DOMContentLoaded', function () {
+    aplicarPermissoesMenu();
+    // tenta de novo após 1 segundo caso Auth ainda não tenha carregado
+    setTimeout(aplicarPermissoesMenu, 1000);
+  });
+</script>
 
 </body>
 </html>
