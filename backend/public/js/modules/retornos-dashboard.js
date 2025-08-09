@@ -1,3 +1,36 @@
+// === PATCH 1: Garantir existência do container de retornos ===
+(function ensureRetornosContainerOnLoad() {
+    function ensureRetornosContainer() {
+        let el = document.getElementById('retornos-container');
+        if (!el) {
+            const card = document.createElement('section');
+            card.className = 'card';
+            card.id = 'retornos-card';
+
+            const h3 = document.createElement('h3');
+            h3.textContent = 'Retornos';
+            card.appendChild(h3);
+
+            el = document.createElement('div');
+            el.id = 'retornos-container';
+            card.appendChild(el);
+
+            // tenta inserir no container principal; se não existir, vai no body
+            (document.getElementById('content-container') ||
+             document.getElementById('dashboard-cards') ||
+             document.body).appendChild(card);
+
+            console.info('🧩 Criado dinamicamente #retornos-container');
+        }
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', ensureRetornosContainer);
+    } else {
+        ensureRetornosContainer();
+    }
+})();
+
 // js/modules/retornos-dashboard.js - Módulo de Retornos VERSÃO CORRIGIDA COMPLETA
 class RetornosDashboard {
     constructor() {
