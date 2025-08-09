@@ -1,5 +1,6 @@
 // === PATCH 1: Garantir existência do container de retornos ===
 // Garante o container antes do init()
+
 (function ensureRetornosContainerBeforeInit() {
     let el = document.getElementById('retornos-container');
     if (!el) {
