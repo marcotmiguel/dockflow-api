@@ -21,24 +21,38 @@ const Auth = {
   },
   
   // Obter dados do usuário
- getUser() {
+getUser() {
   try {
-    const userData = localStorage.getItem('dockflow_user');
+    // prioridade: mesma chave que o login usa
+    let userData = localStorage.getItem('user');
+
+    // fallback: compatibilidade com versões antigas
+    if ((!userData || userData === 'undefined' || userData === 'null')) {
+      userData = localStorage.getItem('dockflow_user');
+    }
+
     if (userData && userData !== 'undefined' && userData !== 'null') {
       return JSON.parse(userData);
     }
-    return authState.user;
+
+    // fallback final seguro
+    return { role: null, name: null, email: null };
   } catch (error) {
     console.error('❌ Erro ao obter dados do usuário:', error);
-    return authState.user;
+    return { role: null, name: null, email: null };
   }
 },
+
   
   // Verificar se o usuário tem determinada função
   hasRole: function(role) {
     const user = this.getUser();
     return user && user.role === role;
   },
+  isAdmin: function() {
+  const user = this.getUser();
+  return !!user && (user.role === 'admin');
+},
   
   // Fazer login
   login: async function(email, password) {
@@ -88,15 +102,14 @@ const Auth = {
   
   // Fazer logout
   logout: function() {
-    // Log apenas em desenvolvimento
-    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-      console.log('🚪 Fazendo logout');
-    }
-    
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    window.location.href = '/';
-  },
+  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    console.log('🚪 Fazendo logout');
+  }
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
+  localStorage.removeItem('dockflow_user'); // opcional: limpa legacy
+  window.location.href = '/';
+},
   
   // Obter cabeçalhos para requisições autenticadas
   getAuthHeaders: function() {
