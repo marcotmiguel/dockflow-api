@@ -1,3 +1,15 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>DockFlow • Usuários</title>
+  <link rel="stylesheet" href="/assets/css/bootstrap.min.css">
+  <link rel="stylesheet" href="/assets/css/styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body>
+<main class="container-fluid py-3">
 <!-- Página de Gerenciamento de Usuários -->
 <div class="content-page">
   <!-- Cabeçalho da página -->
@@ -415,7 +427,7 @@
   </div>
 </div>
 <!-- Ferramentas de Desenvolvedor (após o div do cabeçalho) -->
-<div id="developer-tools" class="card border-danger mb-4" style="display: none;">
+<div id="developer-tools-2" class="card border-danger mb-4" style="display: none;">
   <div class="card-header bg-danger text-white">
     <h5 class="mb-0">
       <i class="fas fa-code me-2"></i>
@@ -755,3 +767,29 @@ document.addEventListener('DOMContentLoaded', function() {
 // Exportar para uso global
 window.DeveloperTools = DeveloperTools;
 </script>
+</main>
+<script src="/assets/js/bootstrap.bundle.min.js"></script>
+<script src="/assets/js/utils.js"></script>
+<script src="/assets/js/auth.js"></script>
+<script src="/assets/js/users.js"></script>
+<script>
+  function canManageUsers(u) {
+    const p = (u && u.permissions) || [];
+    return (u && (u.role === 'admin' || u.role === 'desenvolvedor')) || p.includes('manage_users') || p.includes('*');
+  }
+  document.addEventListener('DOMContentLoaded', async () => {
+    try {
+      const me = await Auth.me();
+      window.currentUser = me?.data || null;
+      const li = document.getElementById('menu-users');
+      if (li && !canManageUsers(window.currentUser)) li.classList.add('d-none');
+      if (window.Users && typeof Users.init === 'function') {
+        Users.init();
+      }
+    } catch (err) {
+      console.error('Falha ao inicializar página de usuários:', err);
+    }
+  });
+</script>
+</body>
+</html>
