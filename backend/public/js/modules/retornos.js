@@ -102,18 +102,40 @@ const Retornos = {
     
     // Renderizar lista de retornos
     renderRetornos() {
-        const container = document.getElementById('retornos-container');
-        if (!container) return;
-        
-        if (this.retornos.length === 0) {
-            container.innerHTML = `
-                <div class="text-center text-muted py-4">
-                    <i class="fas fa-undo fa-3x mb-3"></i>
-                    <p>Nenhum retorno de carga registrado</p>
-                </div>
-            `;
-            return;
-        }
+        let container = document.getElementById('retornos-container');
+
+// Se não existir, cria dinamicamente
+if (!container) {
+    const card = document.createElement('section');
+    card.className = 'card';
+    card.id = 'retornos-card';
+
+    const h3 = document.createElement('h3');
+    h3.textContent = 'Retornos';
+    card.appendChild(h3);
+
+    container = document.createElement('div');
+    container.id = 'retornos-container';
+    card.appendChild(container);
+
+    (document.getElementById('content-container') ||
+     document.getElementById('dashboard-cards') ||
+     document.body).appendChild(card);
+
+    console.info('🧩 [renderRetornos] Criado dinamicamente #retornos-container');
+}
+
+// Se não há retornos, mostra mensagem padrão
+if (this.retornos.length === 0) {
+    container.innerHTML = `
+        <div class="text-center text-muted py-4">
+            <i class="fas fa-undo fa-3x mb-3"></i>
+            <p>Nenhum retorno de carga registrado</p>
+        </div>
+    `;
+    return;
+}
+
         
         const html = this.retornos.map(retorno => this.renderRetornoItem(retorno)).join('');
         container.innerHTML = html;
