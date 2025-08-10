@@ -638,29 +638,17 @@
     });
   </script>
 <script>
-  // ⇩ NOVO PATCH — Mostrar aba Usuários para admin OU desenvolvedor
   function aplicarPermissoesMenu() {
-    try {
-      const role = (window.Auth && typeof Auth.getUser === 'function')
-        ? (Auth.getUser()?.role || null)
-        : null;
-      const allow = role === 'admin' || role === 'desenvolvedor';
-
-      document.querySelectorAll('[data-role="admin"]').forEach(el => {
-        el.style.display = allow ? '' : 'none';
-      });
-    } catch (e) {
-      console.warn('Permissões de menu: fallback (não foi possível ler role).', e);
-    }
+    // Mostrar sempre os itens marcados como data-role="admin"
+    // (ajuste temporário até corrigirmos o login/role)
+    document.querySelectorAll('[data-role="admin"]').forEach(el => {
+      el.style.display = 'list-item';
+      el.hidden = false;
+      el.classList.remove('d-none');
+    });
   }
-
-  // Garante execução após carregamento
-  document.addEventListener('DOMContentLoaded', function () {
-    aplicarPermissoesMenu();
-    // tenta de novo após 1 segundo caso Auth ainda não tenha carregado
-    setTimeout(aplicarPermissoesMenu, 1000);
-  });
 </script>
+
 
 <script>
   function aplicarPermissoesMenu() {
