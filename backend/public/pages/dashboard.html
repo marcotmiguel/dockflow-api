@@ -649,30 +649,5 @@
   }
 </script>
 
-
-<script>
-  function aplicarPermissoesMenu() {
-    try {
-      const role = (window.Auth && typeof Auth.getUser === 'function')
-        ? (Auth.getUser()?.role || '').toLowerCase()
-        : '';
-
-      const privileged = ['admin', 'desenvolvedor', 'dev', 'manager'].includes(role);
-
-      document.querySelectorAll('[data-role="admin"]').forEach(el => {
-        el.style.display = privileged ? '' : 'none';
-      });
-    } catch (e) {
-      console.warn('Permissões de menu: fallback (não foi possível ler role).', e);
-    }
-  }
-
-  document.addEventListener('DOMContentLoaded', function () {
-    aplicarPermissoesMenu();
-    setTimeout(aplicarPermissoesMenu, 1000);
-  });
-</script>
-
-
 </body>
 </html>
