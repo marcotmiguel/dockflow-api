@@ -9,51 +9,66 @@ const router = express.Router();
 // JWT Secret
 const JWT_SECRET = process.env.JWT_SECRET || 'dockflow_super_secret_key_2025';
 
-console.log('🔐 AuthRoutes carregado - Backend Node.js');
+// 🔁 Normalização de roles — aceita variações comuns
+function normalizeRole(role) {
+  if (!role) return '';
+  const r = String(role).toLowerCase().trim();
+  const map = {
+    developer: 'desenvolvedor',
+    dev: 'desenvolvedor',
+    manager: 'admin',
+    analyst: 'analista',
+    operator: 'operador'
+  };
+  return map[r] || r;
+}
 
-// Middleware de autenticação
+
+console.log('🔐 AuthRoutes carregado - Backend Node.js');
+// 🔐 Autenticação via JWT
 const authMiddleware = async (req, res, next) => {
   try {
-    const authHeader = req.headers.authorization;
-    
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({
-        success: false,
-        message: 'Token de acesso requerido'
-      });
+    const header = req.headers['authorization'] || req.headers['Authorization'];
+    if (!header || !header.startsWith('Bearer ')) {
+      return res.status(401).json({ success: false, message: 'Token não fornecido' });
     }
 
-    const token = authHeader.replace('Bearer ', '');
-    
+    const token = header.slice(7);
     const decoded = jwt.verify(token, JWT_SECRET);
-    
-    // Verificar se usuário ainda existe e está ativo
-    const [users] = await db.execute(
-      'SELECT id, email, name, role FROM users WHERE id = ? AND status = "active"',
-      [decoded.id]
-    );
 
-    if (users.length === 0) {
-      return res.status(401).json({
-        success: false,
-        message: 'Usuário não encontrado ou inativo'
-      });
+    // (Preferível) Carrega usuário do DB pelo e-mail do token
+    let userFromDb = null;
+    try {
+      if (decoded?.email && typeof db?.execute === 'function') {
+        const [rows] = await db.execute(
+          'SELECT id, name, email, role, status FROM users WHERE email = ? LIMIT 1',
+          [decoded.email]
+        );
+        userFromDb = rows && rows[0] ? rows[0] : null;
+      }
+    } catch (e) {
+      console.warn('⚠️ authMiddleware: fallback para dados do token (DB indisponível):', e?.message);
     }
 
+    const source = userFromDb || decoded || {};
     req.user = {
-      ...decoded,
-      ...users[0]
+      id: source.id || decoded.id || null,
+      name: source.name || decoded.name || null,
+      email: source.email || decoded.email || null,
+      role: normalizeRole(source.role || decoded.role || '')
     };
-    
-    next();
-  } catch (error) {
-    console.error('❌ Erro no middleware de auth:', error);
-    return res.status(401).json({
-      success: false,
-      message: 'Token inválido ou expirado'
-    });
+
+    if (userFromDb && userFromDb.status && userFromDb.status !== 'active') {
+      return res.status(403).json({ success: false, message: 'Usuário inativo.' });
+    }
+
+    return next();
+  } catch (err) {
+    console.error('❌ Erro no middleware de auth:', err);
+    return res.status(401).json({ success: false, message: 'Token inválido ou expirado' });
   }
 };
+
 
 // 🔐 POST /api/auth/login
 router.post('/login', async (req, res) => {
@@ -289,50 +304,53 @@ function getPermissionsByRole(role) {
   return permissions[role] || [];
 }
 
-// Middleware para verificar role
+// 🛡️ Exige hierarquia mínima de role
 const requireRole = (requiredRole) => {
   return (req, res, next) => {
     const roleHierarchy = {
       'operador': 1,
       'analista': 2,
       'admin': 3,
-      'desenvolvedor': 4
+      'desenvolvedor': 4 // topo
     };
-    
-    const userLevel = roleHierarchy[req.user.role] || 0;
-    const requiredLevel = roleHierarchy[requiredRole] || 999;
-    
-    if (userLevel >= requiredLevel) {
-      next();
-    } else {
-      res.status(403).json({
-        success: false,
-        message: `Acesso negado. Requer role '${requiredRole}' ou superior.`
-      });
+
+    const userRole = normalizeRole(req.user?.role);
+    const need = normalizeRole(requiredRole);
+
+    if ((roleHierarchy[userRole] || 0) >= (roleHierarchy[need] || 0)) {
+      return next();
     }
+
+    return res.status(403).json({
+      success: false,
+      message: `Acesso negado. Requer role: ${requiredRole}`
+    });
   };
 };
 
-// Middleware para verificar permissão específica
+
+// 🔏 Exige permissão específica
 const requirePermission = (permission) => {
   return (req, res, next) => {
-    const userPermissions = getPermissionsByRole(req.user.role);
-    
+    const role = normalizeRole(req.user?.role);
+
     // Desenvolvedor tem todas as permissões
-    if (req.user.role === 'desenvolvedor' || userPermissions.includes('*')) {
+    if (role === 'desenvolvedor') return next();
+
+    const userPermissions =
+      (typeof getPermissionsByRole === 'function' ? getPermissionsByRole(role) : []) || [];
+
+    if (userPermissions.includes('*') || userPermissions.includes(permission)) {
       return next();
     }
-    
-    if (userPermissions.includes(permission)) {
-      next();
-    } else {
-      res.status(403).json({
-        success: false,
-        message: `Acesso negado. Requer permissão: ${permission}`
-      });
-    }
+
+    return res.status(403).json({
+      success: false,
+      message: `Acesso negado. Requer permissão: ${permission}`
+    });
   };
 };
+
 
 // Exportar middleware para uso em outras rotas
 router.authMiddleware = authMiddleware;

@@ -306,4 +306,41 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     window.location.href = '/pages/dashboard.html';
   }
+
+  // Normalização de roles para o frontend
+function normalizeRole(role) {
+  if (!role) return '';
+  const r = String(role).toLowerCase();
+  const map = {
+    developer: 'desenvolvedor',
+    dev: 'desenvolvedor',
+    manager: 'admin',
+    analyst: 'analista',
+    operator: 'operador'
+  };
+  return map[r] || r;
+}
+
+const Role = {
+  isPrivileged(role) {
+    const r = normalizeRole(role);
+    return r === 'admin' || r === 'desenvolvedor';
+  },
+  hasAny(role, list) {
+    const r = normalizeRole(role);
+    return list.map(normalizeRole).includes(r);
+  }
+};
+
+// (Opcional) Se existir Auth.isAdmin(), torne mais generoso:
+if (typeof Auth !== 'undefined') {
+  const _oldIsAdmin = Auth.isAdmin;
+  Auth.isAdmin = function() {
+    const user = this.getUser?.() || {};
+    const role = normalizeRole(user.role);
+    return role === 'admin' || role === 'desenvolvedor';
+  };
+}
+
+
 });
