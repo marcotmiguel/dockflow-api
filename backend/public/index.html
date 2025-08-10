@@ -117,14 +117,19 @@
             });
             
             const data = await response.json();
-            
-            if (response.ok) {
-              localStorage.setItem('token', data.token);
-              localStorage.setItem('user', JSON.stringify(data.user));
-              window.location.href = '/pages/dashboard.html';
-            } else {
-              throw new Error(data.message || 'Erro no login');
-            }
+
+// validações fortes — não salva nem redireciona sem token e user
+if (!response.ok) {
+  throw new Error(data && data.message ? data.message : 'Erro no login');
+}
+if (!data || !data.token || !data.user) {
+  throw new Error('Falha no login: resposta inválida da API (sem token/usuário).');
+}
+
+localStorage.setItem('token', data.token);
+localStorage.setItem('user', JSON.stringify(data.user));
+window.location.href = '/pages/dashboard.html';
+
           } catch (error) {
             errorElement.textContent = error.message;
             errorElement.classList.remove('d-none');
