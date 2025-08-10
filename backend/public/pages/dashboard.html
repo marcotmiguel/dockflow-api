@@ -73,6 +73,16 @@
       transition: box-shadow 0.3s ease;
     }
   </style>
+  <style>
+  /* Força a aba "Usuários" a ficar sempre visível */
+  .sidebar .nav-item[data-role="admin"],
+  nav .nav-item[data-role="admin"],
+  .nav-item[data-role="admin"] {
+    display: list-item !important;
+    visibility: visible !important;
+  }
+</style>
+
 </head>
 <body>
   <!-- Alert Container CORRIGIDO -->
